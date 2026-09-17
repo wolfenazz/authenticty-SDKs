@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="SDK/Logo.png" alt="Authenticity logo" width="180">
+</p>
+
 # Authenticity SDKs
 
 Official client SDK examples for integrating [Authenticity](https://authenticty.vercel.app/) authentication, licensing, session validation, and application services into desktop, server, and scripting projects.
