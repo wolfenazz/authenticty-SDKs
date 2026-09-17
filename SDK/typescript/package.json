@@ -1,0 +1,38 @@
+{
+  "name": "authenticity-sdk",
+  "version": "1.0.0",
+  "description": "A complete, dependency-free (global fetch only) TypeScript client for the Authenticity auth/licensing server. Mirrors the official Go / Python / Java / C# SDKs.",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "require": "./dist/src/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "example": "ts-node example.ts",
+    "prepack": "tsc"
+  },
+  "keywords": [
+    "authenticity",
+    "auth",
+    "licensing",
+    "license",
+    "sdk",
+    "typescript"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,0 +1,31 @@
+{
+    "name": "authenticity/authenticity-sdk",
+    "description": "A complete, dependency-free (cURL only) PHP client for the Authenticity auth/licensing HTTP API. Mirrors the Go, Python, Java, C# and other SDKs in the same repository.",
+    "type": "library",
+    "license": "MIT",
+    "version": "1.0.0",
+    "keywords": [
+        "authenticity",
+        "auth",
+        "licensing",
+        "license",
+        "sdk",
+        "client"
+    ],
+    "require": {
+        "php": ">=7.4",
+        "ext-curl": "*",
+        "ext-json": "*"
+    },
+    "autoload": {
+        "classmap": [
+            "src/"
+        ],
+        "files": [
+            "src/Authenticity.php"
+        ]
+    },
+    "scripts": {
+        "example": "php example.php"
+    }
+}
