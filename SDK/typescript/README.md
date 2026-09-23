@@ -1,5 +1,9 @@
 # Authenticity TypeScript SDK
 
+## Chat identity
+
+After login, use `await getChatProfile()`, `await updateChatProfile(nickname, avatarId)` to read or change the current user's chat nickname and application avatar ID. Profile calls return an identity with `id`, `nickname`, and `avatarId` (or a failure value; check the last error). Messages include `channelId`, `senderId`, and `avatarId` along with sender, content, and timestamp. Compare `senderId` with the profile `id` to identify your own messages. Preserve Unicode and line breaks in message content. The server enforces channel send cooldowns; show send errors to the user.
+
 Authenticity is an auth/licensing server. This SDK provides a complete,
 idiomatic, fully-typed TypeScript client for its HTTP API. It is
 **dependency-free** — it uses only the global [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API)

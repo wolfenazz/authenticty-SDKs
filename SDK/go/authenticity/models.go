@@ -58,13 +58,23 @@ type Channel struct {
 // Message is a single chat message.
 type Message struct {
 	// ID is the message identifier.
-	ID string
+	ID        string
+	ChannelID string
+	SenderID  string
 	// Sender is the username of the sender.
-	Sender string
+	Sender   string
+	AvatarID string
 	// Content is the message body.
 	Content string
 	// TimeSent is the timestamp string reported by the server.
 	TimeSent string
+}
+
+// ChatProfile is the current user's chat identity.
+type ChatProfile struct {
+	ID       string
+	Nickname string
+	AvatarID string
 }
 
 // SavedCredentials is the persisted auto-login entry stored in login.json.

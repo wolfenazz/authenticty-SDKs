@@ -46,9 +46,11 @@ public class SDKTest {
             } else if (path.endsWith("/chat/channels")) {
                 reply = "{\"success\":\"true\",\"channels\":[{\"id\":\"c1\",\"name\":\"General\"}]}";
             } else if (path.endsWith("/chat/messages") && method.equals("POST")) {
-                reply = "{\"success\":\"true\",\"messages\":[{\"id\":\"m1\",\"sender\":\"a\",\"content\":\"hi\"}]}";
+                reply = "{\"success\":\"true\",\"messages\":[{\"id\":\"m1\",\"channelId\":\"c1\",\"senderId\":\"user-1\",\"sender\":\"أهلا\",\"avatarId\":\"avatar-2\",\"content\":\"hi\"}]}";
             } else if (path.endsWith("/chat/messages") && method.equals("PUT")) {
                 reply = "{\"success\":\"true\",\"message\":\"Message sent\"}";
+            } else if (path.endsWith("/chat/profile")) {
+                reply = "{\"success\":\"true\",\"profileId\":\"user-1\",\"nickname\":\"أهلا\",\"avatarId\":\"avatar-2\"}";
             } else if (path.equals("/file.bin")) {
                 byte[] data = "BYTES".getBytes(StandardCharsets.UTF_8);
                 exchange.sendResponseHeaders(200, data.length);
@@ -89,6 +91,9 @@ public class SDKTest {
         assertEquals(1, c.getChannels().size(), "getChannels size");
         assertEquals("c1", c.getChannels().get(0).get("id"), "getChannels id");
         assertEquals(1, c.getMessages("c1").size(), "getMessages size");
+        assertEquals("user-1", c.getMessages("c1").get(0).get("senderId"), "message sender ID");
+        assertEquals("user-1", c.getChatProfile().get("id"), "getChatProfile");
+        assertEquals("أهلا", c.updateChatProfile("أهلا", "avatar-2").get("nickname"), "updateChatProfile");
         assertTrue(c.sendMessage("c1", "hey"), "sendMessage");
 
         byte[] file = c.downloadFile("f1");
@@ -103,8 +108,13 @@ public class SDKTest {
         String loginBody = calls.stream().filter(x -> x.contains("/auth/login ")).findFirst().orElse("");
         assertTrue(loginBody.contains("\"ownerId\"") && loginBody.contains("\"licenseKey\"")
                 && loginBody.contains("\"hwid\"") && loginBody.contains("\"version\""), "login body keys");
-        String sendBody = calls.stream().filter(x -> x.startsWith("PUT")).findFirst().orElse("");
+        String sendBody = calls.stream().filter(x -> x.startsWith("PUT ") && x.contains("/chat/messages"))
+                .findFirst().orElse("");
         assertTrue(sendBody.contains("\"channelId\"") && sendBody.contains("\"content\""), "send body keys");
+        String profileBody = calls.stream().filter(x -> x.startsWith("PUT ") && x.contains("/chat/profile"))
+                .findFirst().orElse("");
+        assertTrue(profileBody.contains("\"nickname\"") && profileBody.contains("\"avatarId\"")
+                && profileBody.contains("أهلا"), "profile body and Unicode nickname");
         System.out.println("ALL JAVA MOCK TESTS PASSED");
     }
 
@@ -125,4 +135,3 @@ public class SDKTest {
         System.out.println("PASS: " + name);
     }
 }
-

@@ -555,6 +555,49 @@ class Authenticity:
         self._last_error = message or "Unknown error"
         return []
 
+    def get_chat_profile(self) -> Optional[Dict[str, str]]:
+        """Return the current user's chat identity, or None on failure."""
+        if not self._session["is_valid"]:
+            self._last_error = "Session is invalid"
+            return None
+        response = self._request("/chat/profile", "POST", {
+            "token": self._session["token"], "appId": self._app_id,
+        })
+        message = self._json_value(response, "message")
+        if self._is_blacklisted(response, message):
+            self._session["is_valid"] = False
+            self._last_error = message or "Your IP address has been blacklisted"
+            return None
+        if self._json_value(response, "success") != "true":
+            self._last_error = message or "Failed to fetch chat profile"
+            return None
+        self._last_error = ""
+        return {"id": self._json_value(response, "profileId"),
+                "nickname": self._json_value(response, "nickname"),
+                "avatarId": self._json_value(response, "avatarId")}
+
+    def update_chat_profile(self, nickname: str, avatar_id: str) -> Optional[Dict[str, str]]:
+        """Update the chat nickname and application avatar ID."""
+        if not self._session["is_valid"]:
+            self._last_error = "Session is invalid"
+            return None
+        response = self._request("/chat/profile", "PUT", {
+            "token": self._session["token"], "appId": self._app_id,
+            "nickname": nickname, "avatarId": avatar_id,
+        })
+        message = self._json_value(response, "message")
+        if self._is_blacklisted(response, message):
+            self._session["is_valid"] = False
+            self._last_error = message or "Your IP address has been blacklisted"
+            return None
+        if self._json_value(response, "success") != "true":
+            self._last_error = message or "Failed to update chat profile"
+            return None
+        self._last_error = ""
+        return {"id": self._json_value(response, "profileId"),
+                "nickname": self._json_value(response, "nickname"),
+                "avatarId": self._json_value(response, "avatarId")}
+
     def send_message(self, channel_id: str, content: str) -> bool:
         """Send a message to a channel. Returns True on success."""
         if not self._session["is_valid"]:

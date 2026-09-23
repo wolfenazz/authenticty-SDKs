@@ -4,7 +4,8 @@
   "description": "A complete, dependency-free JavaScript (Node + browser) client SDK for the Authenticity auth/licensing HTTP API. Mirrors the Go, Python, Java and other SDKs in the same repository.",
   "main": "src/Authenticity.js",
   "scripts": {
-    "example": "node example.js"
+    "example": "node example.js",
+    "test": "node chat.test.js"
   },
   "keywords": [
     "authenticity",

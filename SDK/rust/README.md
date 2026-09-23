@@ -1,5 +1,9 @@
 # Authenticity Rust SDK
 
+## Chat identity
+
+After login, use `get_chat_profile()`, `update_chat_profile(nickname, avatar_id)` to read or change the current user's chat nickname and application avatar ID. Profile calls return an identity with `id`, `nickname`, and `avatarId` (or a failure value; check the last error). Messages include `channelId`, `senderId`, and `avatarId` along with sender, content, and timestamp. Compare `senderId` with the profile `id` to identify your own messages. Preserve Unicode and line breaks in message content. The server enforces channel send cooldowns; show send errors to the user.
+
 Rust client library for the Authenticity authentication and licensing API.
 The crate provides a blocking client suitable for desktop applications, tools,
 and other synchronous Rust programs.

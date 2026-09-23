@@ -77,9 +77,26 @@ pub struct Channel {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Message {
     pub id: String,
+    #[serde(rename = "channelId", default)]
+    pub channel_id: String,
+    #[serde(rename = "senderId", default)]
+    pub sender_id: String,
     pub sender: String,
+    #[serde(rename = "avatarId", default)]
+    pub avatar_id: String,
     pub content: String,
+    #[serde(rename = "timeSent", alias = "time_sent")]
     pub time_sent: String,
+}
+
+/// The current user's chat identity.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ChatProfile {
+    #[serde(rename = "profileId")]
+    pub id: String,
+    pub nickname: String,
+    #[serde(rename = "avatarId")]
+    pub avatar_id: String,
 }
 
 /// Credentials loaded from / persisted to `login.json`.
@@ -309,7 +326,8 @@ impl Client {
             if token.is_empty() {
                 self.session.is_valid = false;
                 self.session.update_link = str_field(&resp, "updateLink");
-                self.last_error = "authenticity: login response did not include a session token".into();
+                self.last_error =
+                    "authenticity: login response did not include a session token".into();
                 return false;
             }
             self.last_error.clear();
@@ -683,6 +701,65 @@ impl Client {
             self.show_error(&resp);
         }
         ok
+    }
+
+    /// Read the current user's chat nickname and avatar.
+    pub fn get_chat_profile(&mut self) -> Option<ChatProfile> {
+        if self.session.token.is_empty() {
+            self.last_error = "no active session".to_string();
+            return None;
+        }
+        let mut body = HashMap::new();
+        body.insert("token".into(), self.session.token.clone().into());
+        body.insert("appId".into(), self.app_id.clone().into());
+        let resp = self.post("/chat/profile", body);
+        self.parse_chat_profile(resp)
+    }
+
+    /// Update the current user's chat nickname and application avatar ID.
+    pub fn update_chat_profile(&mut self, nickname: &str, avatar_id: &str) -> Option<ChatProfile> {
+        if self.session.token.is_empty() {
+            self.last_error = "no active session".to_string();
+            return None;
+        }
+        let mut body: HashMap<String, serde_json::Value> = HashMap::new();
+        body.insert("token".into(), self.session.token.clone().into());
+        body.insert("appId".into(), self.app_id.clone().into());
+        body.insert("nickname".into(), nickname.into());
+        body.insert("avatarId".into(), avatar_id.into());
+        let url = format!("{}/chat/profile", self.api_url);
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        if let Ok(v) = HeaderValue::from_str(&format!("Bearer {}", self.session.token)) {
+            headers.insert("Authorization", v);
+        }
+        let resp = match self.http.put(&url).headers(headers).json(&body).send() {
+            Ok(r) => r
+                .json::<serde_json::Value>()
+                .unwrap_or(serde_json::Value::Null),
+            Err(e) => {
+                self.last_error = format!("request failed: {e}");
+                return None;
+            }
+        };
+        self.parse_chat_profile(resp)
+    }
+
+    fn parse_chat_profile(&mut self, resp: serde_json::Value) -> Option<ChatProfile> {
+        if !bool_field(resp.get("success")) {
+            self.show_error(&resp);
+            return None;
+        }
+        match serde_json::from_value::<ChatProfile>(resp) {
+            Ok(profile) => {
+                self.last_error.clear();
+                Some(profile)
+            }
+            Err(e) => {
+                self.last_error = format!("invalid chat profile response: {e}");
+                None
+            }
+        }
     }
 
     // ---- Credential auto-login ------------------------------------------------
@@ -1096,6 +1173,19 @@ mod tests {
 #[cfg(test)]
 mod parsing_tests {
     use super::*;
+
+    #[test]
+    fn chat_identity_fields_decode() {
+        let message: Message = serde_json::from_str(r#"{"id":"m1","channelId":"general","senderId":"u1","sender":"أهلا","avatarId":"avatar-2","content":"**hi**","timeSent":"2026-01-01T00:00:00Z"}"#).unwrap();
+        assert_eq!(message.channel_id, "general");
+        assert_eq!(message.sender_id, "u1");
+        assert_eq!(message.avatar_id, "avatar-2");
+        assert_eq!(message.sender, "أهلا");
+        let profile: ChatProfile =
+            serde_json::from_str(r#"{"profileId":"u1","nickname":"أهلا","avatarId":"avatar-2"}"#)
+                .unwrap();
+        assert_eq!(profile.id, message.sender_id);
+    }
 
     #[test]
     fn iso_utc_parse() {

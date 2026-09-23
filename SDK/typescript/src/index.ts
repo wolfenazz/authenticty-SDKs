@@ -16,6 +16,7 @@ export type {
   AppData,
   Channel,
   Message,
+  ChatProfile,
   SavedCredentials,
   UpdateInfo,
 } from "./types";

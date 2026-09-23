@@ -2,9 +2,58 @@ package authenticity
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
+
+func TestChatProfileAndMessageIdentity(t *testing.T) {
+	var calls []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		var body map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("request JSON: %v", err)
+		}
+		if body["token"] != "TOK" || body["appId"] != "APP" {
+			t.Errorf("missing auth body: %v", body)
+		}
+		if r.Header.Get("Authorization") != "Bearer TOK" {
+			t.Errorf("missing bearer token")
+		}
+		calls = append(calls, r.Method+" "+r.URL.Path)
+		switch r.URL.Path {
+		case "/chat/profile":
+			if r.Method == "PUT" && (body["nickname"] != "مرحبا" || body["avatarId"] != "avatar-2") {
+				t.Errorf("profile update fields: %v", body)
+			}
+			w.Write([]byte(`{"success":"true","profileId":"user-1","nickname":"مرحبا","avatarId":"avatar-2"}`))
+		case "/chat/messages":
+			w.Write([]byte(`{"success":"true","messages":[{"id":"m1","channelId":"general","senderId":"user-1","sender":"مرحبا","avatarId":"avatar-2","content":"**hi**","timeSent":"2026-01-01T00:00:00Z"}]}`))
+		default:
+			t.Errorf("unexpected route: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	client := NewClient("owner", "APP", server.URL, "1")
+	client.Session = Session{Token: "TOK", IsValid: true}
+	profile, ok := client.GetChatProfile()
+	if !ok || profile.ID != "user-1" {
+		t.Fatalf("get profile: %+v, %v, %s", profile, ok, client.GetLastError())
+	}
+	profile, ok = client.UpdateChatProfile("مرحبا", "avatar-2")
+	if !ok || profile.Nickname != "مرحبا" {
+		t.Fatalf("update profile: %+v, %v", profile, ok)
+	}
+	messages := client.GetMessages("all")
+	if len(messages) != 1 || messages[0].ChannelID != "general" || messages[0].SenderID != profile.ID || messages[0].AvatarID != "avatar-2" {
+		t.Fatalf("messages: %+v", messages)
+	}
+	if len(calls) != 3 || calls[0] != "POST /chat/profile" || calls[1] != "PUT /chat/profile" || calls[2] != "POST /chat/messages" {
+		t.Fatalf("calls: %v", calls)
+	}
+}
 
 func TestGetBoolToleratesStrings(t *testing.T) {
 	cases := []struct {

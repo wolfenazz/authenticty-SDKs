@@ -51,9 +51,18 @@ namespace Authenticity {
 
     struct ChatMessage {
         std::string id;
+        std::string channelId;
+        std::string senderId;
         std::string sender;
+        std::string avatarId;
         std::string content;
         std::string timeSent;
+    };
+
+    struct ChatProfile {
+        std::string id;
+        std::string nickname;
+        std::string avatarId;
     };
 
     class Client {
@@ -122,6 +131,8 @@ namespace Authenticity {
         std::vector<ChatChannel> GetChannels();
         std::vector<ChatMessage> GetMessages(const std::string& channelId);
         bool SendMessage(const std::string& channelId, const std::string& content);
+        bool GetChatProfile(ChatProfile& profile);
+        bool UpdateChatProfile(const std::string& nickname, const std::string& avatarId, ChatProfile& profile);
 
         // Static credential management methods
         static std::string GetExecutableDirectory();

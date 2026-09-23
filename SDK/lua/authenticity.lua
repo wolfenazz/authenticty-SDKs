@@ -970,6 +970,35 @@ function Client:sendMessage(channelId, content)
     return false
 end
 
+--- Return the current user's chat identity, or nil on failure.
+function Client:getChatProfile()
+    local resp = api_post(self, "/chat/profile", {
+        token = self.session.token, appId = self.appId,
+    })
+    if not resp then return nil end
+    if resp.success == true or resp.success == "true" then
+        self.lastError = ""
+        return { id = resp.profileId or "", nickname = resp.nickname or "", avatarId = resp.avatarId or "" }
+    end
+    self.lastError = resp.message or "Failed to fetch chat profile"
+    return nil
+end
+
+--- Update the current user's chat nickname and application avatar ID.
+function Client:updateChatProfile(nickname, avatarId)
+    local resp = api_put(self, "/chat/profile", {
+        token = self.session.token, appId = self.appId,
+        nickname = nickname, avatarId = avatarId,
+    })
+    if not resp then return nil end
+    if resp.success == true or resp.success == "true" then
+        self.lastError = ""
+        return { id = resp.profileId or "", nickname = resp.nickname or "", avatarId = resp.avatarId or "" }
+    end
+    self.lastError = resp.message or "Failed to update chat profile"
+    return nil
+end
+
 
 -- ===========================================================================
 -- Getters / helpers / credentials

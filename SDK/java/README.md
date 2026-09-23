@@ -1,5 +1,9 @@
 # Authenticity Java SDK
 
+## Chat identity
+
+After login, use `getChatProfile()`, `updateChatProfile(nickname, avatarId)` to read or change the current user's chat nickname and application avatar ID. Profile calls return an identity with `id`, `nickname`, and `avatarId` (or a failure value; check the last error). Messages include `channelId`, `senderId`, and `avatarId` along with sender, content, and timestamp. Compare `senderId` with the profile `id` to identify your own messages. Preserve Unicode and line breaks in message content. The server enforces channel send cooldowns; show send errors to the user.
+
 A complete, **dependency-free** (JDK standard library only) client for the
 Authenticity authentication system. It implements every endpoint exposed by the
 dashboard's `/api/v1/client/*` routes, matching the behaviour of the official

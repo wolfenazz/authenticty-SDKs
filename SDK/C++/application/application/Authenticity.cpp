@@ -491,6 +491,37 @@ namespace Authenticity {
         return ok;
     }
 
+    bool Client::GetChatProfile(ChatProfile& profile) {
+        if (!m_Session.isValid) { m_LastError = "Session is invalid"; return false; }
+        const json body = {{"token", m_Session.token}, {"appId", m_AppId}};
+        const std::string response = SendRequest("/chat/profile", "POST", body.dump());
+        if (!IsTrue(GetJsonValue(response, "success"))) {
+            m_LastError = JsonError(response, "Failed to fetch chat profile");
+            return false;
+        }
+        profile.id = GetJsonValue(response, "profileId");
+        profile.nickname = GetJsonValue(response, "nickname");
+        profile.avatarId = GetJsonValue(response, "avatarId");
+        m_LastError.clear();
+        return true;
+    }
+
+    bool Client::UpdateChatProfile(const std::string& nickname, const std::string& avatarId, ChatProfile& profile) {
+        if (!m_Session.isValid) { m_LastError = "Session is invalid"; return false; }
+        const json body = {{"token", m_Session.token}, {"appId", m_AppId},
+                           {"nickname", nickname}, {"avatarId", avatarId}};
+        const std::string response = SendRequest("/chat/profile", "PUT", body.dump());
+        if (!IsTrue(GetJsonValue(response, "success"))) {
+            m_LastError = JsonError(response, "Failed to update chat profile");
+            return false;
+        }
+        profile.id = GetJsonValue(response, "profileId");
+        profile.nickname = GetJsonValue(response, "nickname");
+        profile.avatarId = GetJsonValue(response, "avatarId");
+        m_LastError.clear();
+        return true;
+    }
+
     std::string Client::GetExecutableDirectory() {
         char filename[MAX_PATH];
         GetModuleFileNameA(NULL, filename, MAX_PATH);
@@ -682,7 +713,10 @@ namespace Authenticity {
                 if (!item.is_object()) continue;
                 ChatMessage message;
                 message.id = item.value("id", "");
+                message.channelId = item.value("channelId", "");
+                message.senderId = item.value("senderId", "");
                 message.sender = item.value("sender", item.value("author", ""));
+                message.avatarId = item.value("avatarId", "");
                 message.content = item.value("content", item.value("text", ""));
                 message.timeSent = item.value("timeSent", item.value("time_sent", item.value("timestamp", "")));
                 messages.push_back(message);

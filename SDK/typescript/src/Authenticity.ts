@@ -13,6 +13,7 @@ import {
   AppData,
   Channel,
   Message,
+  ChatProfile,
   SavedCredentials,
   UpdateInfo,
 } from "./types";
@@ -46,6 +47,7 @@ const ENDPOINT = {
   logsAdd: "/logs/add",
   chatChannels: "/chat/channels",
   chatMessages: "/chat/messages",
+  chatProfile: "/chat/profile",
   appUpdate: "/app/update",
 } as const;
 
@@ -804,7 +806,10 @@ export class Authenticity {
       const rec = item as Record<string, unknown>;
       out.push({
         id: getString(rec, "id", ""),
+        channelId: getString(rec, "channelId", ""),
+        senderId: getString(rec, "senderId", ""),
         sender: getString(rec, "sender", getString(rec, "author", "")),
+        avatarId: getString(rec, "avatarId", ""),
         content: getString(rec, "content", getString(rec, "text", "")),
         timeSent: getString(
           rec,
@@ -842,6 +847,42 @@ export class Authenticity {
     }
     this.setErr("");
     return true;
+  }
+
+  /** Read the current user's chat nickname and avatar. */
+  async getChatProfile(): Promise<ChatProfile | null> {
+    if (!this.sessionValid()) return null;
+    const resp = await this.request(ENDPOINT.chatProfile, {
+      token: this.session.token, appId: this.appId,
+    }, true);
+    if (!getBool(resp, "success")) {
+      this.setErr(getString(resp, "message", "failed to fetch chat profile"));
+      return null;
+    }
+    this.setErr("");
+    return {
+      id: getString(resp, "profileId"),
+      nickname: getString(resp, "nickname"),
+      avatarId: getString(resp, "avatarId"),
+    };
+  }
+
+  /** Update the current user's chat nickname and application avatar ID. */
+  async updateChatProfile(nickname: string, avatarId: string): Promise<ChatProfile | null> {
+    if (!this.sessionValid()) return null;
+    const resp = await this.request(ENDPOINT.chatProfile, {
+      token: this.session.token, appId: this.appId, nickname, avatarId,
+    }, true, "PUT");
+    if (!getBool(resp, "success")) {
+      this.setErr(getString(resp, "message", "failed to update chat profile"));
+      return null;
+    }
+    this.setErr("");
+    return {
+      id: getString(resp, "profileId"),
+      nickname: getString(resp, "nickname"),
+      avatarId: getString(resp, "avatarId"),
+    };
   }
 
 

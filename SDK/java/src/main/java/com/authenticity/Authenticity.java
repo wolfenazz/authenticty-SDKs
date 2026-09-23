@@ -496,6 +496,48 @@ public class Authenticity {
         return ok;
     }
 
+    /** Return the current user's chat identity, or null on failure. */
+    public Map<String, Object> getChatProfile() {
+        return chatProfileRequest("POST", null, null);
+    }
+
+    /** Update the current user's chat nickname and application avatar ID. */
+    public Map<String, Object> updateChatProfile(String nickname, String avatarId) {
+        return chatProfileRequest("PUT", nickname, avatarId);
+    }
+
+    private Map<String, Object> chatProfileRequest(String method, String nickname, String avatarId) {
+        if (!mSession.isValid()) {
+            mLastError = "Session is invalid";
+            return null;
+        }
+        Map<String, Object> body = new HashMap<>();
+        body.put("token", mSession.getToken());
+        body.put("appId", mAppId);
+        if ("PUT".equals(method)) {
+            body.put("nickname", nickname);
+            body.put("avatarId", avatarId);
+        }
+        String response = request("/chat/profile", method, body);
+        Map<String, Object> json = Json.parse(response);
+        String message = Json.asString(json, "message");
+        if (isBlacklisted(response, message)) {
+            mSession.setValid(false);
+            mLastError = message.isEmpty() ? "Your IP address has been blacklisted" : message;
+            return null;
+        }
+        if (!"true".equals(Json.asString(json, "success"))) {
+            mLastError = message.isEmpty() ? "Failed to update chat profile" : message;
+            return null;
+        }
+        mLastError = "";
+        Map<String, Object> profile = new HashMap<>();
+        profile.put("id", Json.asString(json, "profileId"));
+        profile.put("nickname", Json.asString(json, "nickname"));
+        profile.put("avatarId", Json.asString(json, "avatarId"));
+        return profile;
+    }
+
 
     // ------------------------------------------------------------------ //
     // Getters / helpers

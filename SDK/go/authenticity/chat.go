@@ -68,14 +68,55 @@ func (c *Client) GetMessages(channelID string) []Message {
 			continue
 		}
 		out = append(out, Message{
-			ID:       obj.getString("id", ""),
-			Sender:   obj.getString("sender", obj.getString("author", "")),
-			Content:  obj.getString("content", obj.getString("text", "")),
-			TimeSent: obj.getString("timeSent", obj.getString("timestamp", obj.getString("time_sent", ""))),
+			ID:        obj.getString("id", ""),
+			ChannelID: obj.getString("channelId", ""),
+			SenderID:  obj.getString("senderId", ""),
+			Sender:    obj.getString("sender", obj.getString("author", "")),
+			AvatarID:  obj.getString("avatarId", ""),
+			Content:   obj.getString("content", obj.getString("text", "")),
+			TimeSent:  obj.getString("timeSent", obj.getString("timestamp", obj.getString("time_sent", ""))),
 		})
 	}
 	c.setErr("")
 	return out
+}
+
+// GetChatProfile fetches the current user's nickname and avatar.
+func (c *Client) GetChatProfile() (ChatProfile, bool) {
+	if !c.sessionValid() {
+		return ChatProfile{}, false
+	}
+	resp, err := c.doJSONRequest(endpointChatProfile, map[string]interface{}{
+		"token": c.Session.Token, "appId": c.AppID,
+	}, true)
+	if err != nil {
+		return ChatProfile{}, false
+	}
+	if !resp.getBool("success", false) {
+		c.setErr(resp.getString("message", "failed to fetch chat profile"))
+		return ChatProfile{}, false
+	}
+	c.setErr("")
+	return ChatProfile{ID: resp.getString("profileId", ""), Nickname: resp.getString("nickname", ""), AvatarID: resp.getString("avatarId", "")}, true
+}
+
+// UpdateChatProfile changes the current user's nickname and application avatar ID.
+func (c *Client) UpdateChatProfile(nickname, avatarID string) (ChatProfile, bool) {
+	if !c.sessionValid() {
+		return ChatProfile{}, false
+	}
+	resp, err := c.doJSONRequestMethod(endpointChatProfile, "PUT", map[string]interface{}{
+		"token": c.Session.Token, "appId": c.AppID, "nickname": nickname, "avatarId": avatarID,
+	}, true)
+	if err != nil {
+		return ChatProfile{}, false
+	}
+	if !resp.getBool("success", false) {
+		c.setErr(resp.getString("message", "failed to update chat profile"))
+		return ChatProfile{}, false
+	}
+	c.setErr("")
+	return ChatProfile{ID: resp.getString("profileId", ""), Nickname: resp.getString("nickname", ""), AvatarID: resp.getString("avatarId", "")}, true
 }
 
 // SendMessage posts a new message to a channel. It returns true on success.

@@ -45,5 +45,6 @@ const (
 	endpointLogsAdd        = "/logs/add"
 	endpointChatChannels   = "/chat/channels"
 	endpointChatMessages   = "/chat/messages"
+	endpointChatProfile    = "/chat/profile"
 	endpointAppUpdate      = "/app/update"
 )

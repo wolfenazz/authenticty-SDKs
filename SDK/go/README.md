@@ -1,5 +1,9 @@
 # Authenticity Go SDK
 
+## Chat identity
+
+After login, use `GetChatProfile() (ChatProfile, bool)`, `UpdateChatProfile(nickname, avatarID) (ChatProfile, bool)` to read or change the current user's chat nickname and application avatar ID. Profile calls return an identity with `id`, `nickname`, and `avatarId` (or a failure value; check the last error). Messages include `channelId`, `senderId`, and `avatarId` along with sender, content, and timestamp. Compare `senderId` with the profile `id` to identify your own messages. Preserve Unicode and line breaks in message content. The server enforces channel send cooldowns; show send errors to the user.
+
 Authenticity is an auth/licensing server. This SDK provides a dependency-light,
 idiomatic Go client for its HTTP API. It mirrors the behavior and feature set of
 the existing C#/C++ SDKs and the newer Python/Java SDKs.

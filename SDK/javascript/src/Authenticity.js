@@ -46,6 +46,7 @@ const EP = {
   logsAdd: '/logs/add',
   chatChannels: '/chat/channels',
   chatMessages: '/chat/messages',
+  chatProfile: '/chat/profile',
   appUpdate: '/app/update',
 };
 
@@ -876,7 +877,7 @@ class Authenticity {
   /**
    * Fetch messages for a channel, or "all" for every channel.
    * @param {string} channelId
-   * @returns {Promise<Array<{id:string,sender:string,content:string,timeSent:string}>>}
+   * @returns {Promise<Array<{id:string,channelId:string,senderId:string,sender:string,avatarId:string,content:string,timeSent:string}>>}
    */
   async getMessages(channelId) {
     if (!this._sessionValid()) {
@@ -894,11 +895,14 @@ class Authenticity {
     }
     const out = arr.map(function (item) {
       if (item === null || typeof item !== 'object') {
-        return { id: '', sender: '', content: '', timeSent: '' };
+        return { id: '', channelId: '', senderId: '', sender: '', avatarId: '', content: '', timeSent: '' };
       }
       return {
         id: toStr(item.id),
+        channelId: toStr(item.channelId),
+        senderId: toStr(item.senderId),
         sender: toStr(item.sender) || toStr(item.author),
+        avatarId: toStr(item.avatarId),
         content: toStr(item.content) || toStr(item.text),
         timeSent: toStr(item.timeSent) || toStr(item.timestamp) || toStr(item.time_sent),
       };
@@ -936,6 +940,32 @@ class Authenticity {
     }
     this._lastError = '';
     return true;
+  }
+
+  /** @returns {Promise<{id:string,nickname:string,avatarId:string}|null>} */
+  async getChatProfile() {
+    if (!this._sessionValid()) return null;
+    const resp = await this._request(EP.chatProfile,
+      { token: this._session.token, appId: this._appId }, true);
+    if (!asBool(resp.success)) {
+      this._lastError = toStr(resp.message) || 'failed to fetch chat profile';
+      return null;
+    }
+    this._lastError = '';
+    return { id: toStr(resp.profileId), nickname: toStr(resp.nickname), avatarId: toStr(resp.avatarId) };
+  }
+
+  /** @returns {Promise<{id:string,nickname:string,avatarId:string}|null>} */
+  async updateChatProfile(nickname, avatarId) {
+    if (!this._sessionValid()) return null;
+    const resp = await this._request(EP.chatProfile,
+      { token: this._session.token, appId: this._appId, nickname, avatarId }, true, 'PUT');
+    if (!asBool(resp.success)) {
+      this._lastError = toStr(resp.message) || 'failed to update chat profile';
+      return null;
+    }
+    this._lastError = '';
+    return { id: toStr(resp.profileId), nickname: toStr(resp.nickname), avatarId: toStr(resp.avatarId) };
   }
 
   // ------------------------------------------------------------------ //

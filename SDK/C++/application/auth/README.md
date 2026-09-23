@@ -1,5 +1,9 @@
 # Authenticity C++ Authentication SDK
 
+## Chat identity
+
+After login, use `GetChatProfile(ChatProfile&)`, `UpdateChatProfile(nickname, avatarId, ChatProfile&)` to read or change the current user's chat nickname and application avatar ID. Profile calls return an identity with `id`, `nickname`, and `avatarId` (or a failure value; check the last error). Messages include `channelId`, `senderId`, and `avatarId` along with sender, content, and timestamp. Compare `senderId` with the profile `id` to identify your own messages. Preserve Unicode and line breaks in message content. The server enforces channel send cooldowns; show send errors to the user.
+
 A comprehensive C++ SDK for integrating the Authenticity authentication system into your Windows applications. This SDK provides secure user authentication, license validation, session management, and remote configuration capabilities.
 
 ## Features

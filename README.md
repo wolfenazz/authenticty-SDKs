@@ -17,7 +17,7 @@ This repository contains source SDKs for multiple languages. Each SDK talks to t
 - Remote variables and application metadata
 - File downloads and direct download links
 - Webhooks and application logging
-- Chat channels, message history, and message sending
+- Chat channels, message history, message sending, and user chat profiles
 - Optional credential persistence for auto-login
 
 ## SDKs in this repository
@@ -92,9 +92,12 @@ The SDKs target the client API under the configured base URL. Most operations us
 | Logging | `/logs/add` | Send an application log entry |
 | Chat channels | `/chat/channels` | List available channels |
 | Chat messages | `/chat/messages` | Read or send channel messages |
+| Chat profile | `/chat/profile` | Read or update the current user's nickname and avatar |
 | Self-ban | `/auth/ban` | Report abuse or invalidate the current session |
 
 After login, authenticated SDKs send the session token as a bearer token and in the request body where required by the API implementation.
+
+Chat profile reads use `POST /chat/profile` with `token` and `appId`. Updates use `PUT /chat/profile` with `nickname` and `avatarId` added. Both return `profileId`, `nickname`, and `avatarId`. Message reads return `id`, `channelId`, `senderId`, `sender`, `avatarId`, `content`, and `timeSent`. The sender ID is the stable value to use for identifying your own messages; the nickname can change. Use an avatar ID that your application already provides. Message bodies may contain Unicode and line breaks; clients should preserve them and let the UI render them safely. The server enforces each channel's send cooldown, so handle send failures and show the returned error to the user.
 
 ## Configuration values
 

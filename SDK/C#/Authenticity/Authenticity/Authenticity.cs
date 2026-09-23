@@ -1397,6 +1397,58 @@ namespace Authenticity
             return GetJsonValue(response, "success") == "true";
         }
 
+        public ChatProfile GetChatProfile()
+        {
+            if (!m_Session.IsValid)
+            {
+                m_LastError = "Session is invalid";
+                return null;
+            }
+            var body = new Dictionary<string, string>
+            {
+                { "token", m_Session.Token }, { "appId", m_AppId }
+            };
+            return ParseChatProfileResponse(SendRequest("/chat/profile", "POST", DictionaryToJson(body)));
+        }
+
+        public ChatProfile UpdateChatProfile(string nickname, string avatarId)
+        {
+            if (!m_Session.IsValid)
+            {
+                m_LastError = "Session is invalid";
+                return null;
+            }
+            var body = new Dictionary<string, string>
+            {
+                { "token", m_Session.Token }, { "appId", m_AppId },
+                { "nickname", nickname }, { "avatarId", avatarId }
+            };
+            return ParseChatProfileResponse(SendRequest("/chat/profile", "PUT", DictionaryToJson(body)));
+        }
+
+        private ChatProfile ParseChatProfileResponse(string response)
+        {
+            string message = GetJsonValue(response, "message");
+            if (IsBlacklistResponse(response, message))
+            {
+                m_Session.IsValid = false;
+                m_LastError = string.IsNullOrEmpty(message) ? "Your IP address has been blacklisted" : message;
+                return null;
+            }
+            if (GetJsonValue(response, "success") != "true")
+            {
+                m_LastError = string.IsNullOrEmpty(message) ? "Failed to fetch chat profile" : message;
+                return null;
+            }
+            m_LastError = "";
+            return new ChatProfile
+            {
+                Id = GetJsonValue(response, "profileId"),
+                Nickname = GetJsonValue(response, "nickname"),
+                AvatarId = GetJsonValue(response, "avatarId")
+            };
+        }
+
         private List<ChatChannel> ParseChannels(string json)
         {
             var list = new List<ChatChannel>();
@@ -1446,7 +1498,10 @@ namespace Authenticity
                     list.Add(new ChatMessage
                     {
                         Id = JsonObjectString(message, "id"),
+                        ChannelId = JsonObjectString(message, "channelId"),
+                        SenderId = JsonObjectString(message, "senderId"),
                         Sender = JsonObjectString(message, "sender", "author"),
+                        AvatarId = JsonObjectString(message, "avatarId"),
                         Content = JsonObjectString(message, "content", "text"),
                         TimeSent = JsonObjectString(message, "timeSent", "time_sent", "timestamp")
                     });
@@ -1600,8 +1655,18 @@ namespace Authenticity
     public class ChatMessage
     {
         public string Id { get; set; }
+        public string ChannelId { get; set; }
+        public string SenderId { get; set; }
         public string Sender { get; set; }
+        public string AvatarId { get; set; }
         public string Content { get; set; }
         public string TimeSent { get; set; }
+    }
+
+    public class ChatProfile
+    {
+        public string Id { get; set; }
+        public string Nickname { get; set; }
+        public string AvatarId { get; set; }
     }
 }

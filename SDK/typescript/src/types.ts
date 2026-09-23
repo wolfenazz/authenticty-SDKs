@@ -71,12 +71,25 @@ export interface Channel {
 export interface Message {
   /** The message identifier. */
   id: string;
+  /** Channel containing this message. */
+  channelId: string;
+  /** Stable sender identifier for identifying one's own messages. */
+  senderId: string;
   /** The username of the sender. */
   sender: string;
+  /** Application avatar identifier. */
+  avatarId: string;
   /** The message body. */
   content: string;
   /** The timestamp string reported by the server. */
   timeSent: string;
+}
+
+/** The current user's chat identity. */
+export interface ChatProfile {
+  id: string;
+  nickname: string;
+  avatarId: string;
 }
 
 /**

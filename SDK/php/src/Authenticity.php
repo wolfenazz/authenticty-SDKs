@@ -599,7 +599,7 @@ class Authenticity
      * every channel.
      *
      * @param string $channelId Channel identifier, or 'all'.
-     * @return array List of message arrays: [id, sender, content, timeSent].
+     * @return array List of message arrays with channelId, senderId and avatarId.
      */
     public function getMessages($channelId)
     {
@@ -630,7 +630,10 @@ class Authenticity
             }
             $out[] = array(
                 'id'       => $this->getString($item, 'id', ''),
+                'channelId' => $this->getString($item, 'channelId', ''),
+                'senderId' => $this->getString($item, 'senderId', ''),
                 'sender'   => $this->getString($item, 'sender', $this->getString($item, 'author', '')),
+                'avatarId' => $this->getString($item, 'avatarId', ''),
                 'content'  => $this->getString($item, 'content', $this->getString($item, 'text', '')),
                 'timeSent' => $this->getString(
                     $item,
@@ -676,6 +679,43 @@ class Authenticity
         }
         $this->lastError = '';
         return true;
+    }
+
+    /** Return the current user's chat identity, or null on failure. */
+    public function getChatProfile()
+    {
+        if (!$this->sessionValid()) return null;
+        $resp = $this->request('/chat/profile', array(
+            'token' => $this->session['token'], 'appId' => $this->appId,
+        ), true);
+        if ($resp === null) return null;
+        if (!$this->isSuccess($resp)) {
+            $this->lastError = $this->getString($resp, 'message', 'failed to fetch chat profile');
+            return null;
+        }
+        $this->lastError = '';
+        return array('id' => $this->getString($resp, 'profileId', ''),
+            'nickname' => $this->getString($resp, 'nickname', ''),
+            'avatarId' => $this->getString($resp, 'avatarId', ''));
+    }
+
+    /** Update the current user's chat nickname and application avatar ID. */
+    public function updateChatProfile($nickname, $avatarId)
+    {
+        if (!$this->sessionValid()) return null;
+        $resp = $this->request('/chat/profile', array(
+            'token' => $this->session['token'], 'appId' => $this->appId,
+            'nickname' => $nickname, 'avatarId' => $avatarId,
+        ), true, 'PUT');
+        if ($resp === null) return null;
+        if (!$this->isSuccess($resp)) {
+            $this->lastError = $this->getString($resp, 'message', 'failed to update chat profile');
+            return null;
+        }
+        $this->lastError = '';
+        return array('id' => $this->getString($resp, 'profileId', ''),
+            'nickname' => $this->getString($resp, 'nickname', ''),
+            'avatarId' => $this->getString($resp, 'avatarId', ''));
     }
 
 
