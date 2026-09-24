@@ -236,6 +236,10 @@ void ShowChatInterface(Authenticity::Client& client) {
                 break;
             }
             case 2: {
+                Authenticity::ChatProfile profile;
+                if (client.GetChatProfile(profile)) {
+                    std::cout << "Chat profile: " << profile.nickname << " (" << profile.avatarId << ")" << std::endl;
+                }
                 std::cout << skCrypt("Enter channel ID: ").decrypt();
                 std::string channelId;
                 std::getline(std::cin, channelId);

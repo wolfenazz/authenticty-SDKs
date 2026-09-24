@@ -103,6 +103,8 @@ async function main(): Promise<void> {
   }
 
   const messages = await client.getMessages("all");
+  const profile = await client.getChatProfile();
+  if (profile) console.log(`Chat profile: ${profile.nickname} (${profile.avatarId})`);
   console.log(`Messages: ${messages.length}`);
   for (const m of messages) {
     console.log(`  [${m.timeSent}] ${m.sender}: ${m.content}`);

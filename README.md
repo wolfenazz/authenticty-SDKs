@@ -13,6 +13,7 @@ This repository contains source SDKs for multiple languages. Each SDK talks to t
 - License-key and username/password authentication
 - User registration and application update checks
 - Session heartbeats and license-expiry handling
+- Subscription templates with named features and numeric limits
 - Hardware ID (HWID) binding and blacklist checks
 - Remote variables and application metadata
 - File downloads and direct download links
@@ -96,6 +97,35 @@ The SDKs target the client API under the configured base URL. Most operations us
 | Self-ban | `/auth/ban` | Report abuse or invalidate the current session |
 
 After login, authenticated SDKs send the session token as a bearer token and in the request body where required by the API implementation.
+
+## Subscription entitlements
+
+Create an application-specific access template in **Dashboard → Subscriptions** with a name, level, feature IDs (such as `reports` or `export`), and nonnegative integer limits (such as `projects: 5`). Assign it to a license key on the Licenses screen or directly to a user on the Users screen. A direct user assignment overrides the license assignment; otherwise the user inherits the license plan. This system configures application access and is not recurring billing.
+
+Successful login and `POST /auth/check` responses include `subscriptionId`, `subscriptionName`, `level`, `features`, and `limits`. Session heartbeats refresh the SDK's local entitlement snapshot. Each SDK also exposes `hasFeature` (or the language's idiomatic equivalent) to ask the server to authorize a named feature. A feature denial returns false without invalidating the session. Platform chat, file, user-variable, and webhook routes require the corresponding `chat`, `files`, `user_variables`, and `webhooks` feature IDs when a plan is assigned.
+
+Use the returned limit values in your application, but enforce quotas in a trusted application backend. Authenticity stores configured limits; it cannot count application-specific actions such as projects or exports, and a client-side check alone is not a secure quota.
+
+Example session fields:
+
+```json
+{
+  "subscriptionId": "plan-id",
+  "subscriptionName": "Premium",
+  "level": 2,
+  "features": ["reports", "export"],
+  "limits": { "projects": 5 }
+}
+```
+
+Feature checks use the active session and `POST /auth/check`:
+
+```text
+HasFeature("export")      # C#, C++, Go
+hasFeature("export")      # Java, JavaScript, PHP
+has_feature("export")     # Python, Ruby, Rust
+client:hasFeature("export") # Lua
+```
 
 Chat profile reads use `POST /chat/profile` with `token` and `appId`. Updates use `PUT /chat/profile` with `nickname` and `avatarId` added. Both return `profileId`, `nickname`, and `avatarId`. Message reads return `id`, `channelId`, `senderId`, `sender`, `avatarId`, `content`, and `timeSent`. The sender ID is the stable value to use for identifying your own messages; the nickname can change. Use an avatar ID that your application already provides. Message bodies may contain Unicode and line breaks; clients should preserve them and let the UI render them safely. The server enforces each channel's send cooldown, so handle send failures and show the returned error to the user.
 

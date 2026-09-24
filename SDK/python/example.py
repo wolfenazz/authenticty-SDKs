@@ -118,6 +118,9 @@ def main() -> None:
                 print("   Last:", last.get("sender"), "->", last.get("content"))
 
     # Sending is opt-in so the example never publishes a comment by accident.
+    profile = client.get_chat_profile()
+    if profile:
+        print("Chat profile:", profile["nickname"], profile["avatarId"])
     if os.getenv("AUTH_SEND_COMMENT") == "true" and channels:
         channel_id = channels[0].get("id")
         if channel_id and client.send_message(channel_id, "Hello from the Python SDK example!"):

@@ -119,6 +119,7 @@ namespace Authenticity {
         if (m_Session.hwid.empty()) m_Session.hwid = m_Hwid;
         try { m_Session.level = std::stoi(GetJsonValue(response, "level")); }
         catch (...) { m_Session.level = 0; }
+        ApplySubscriptionResponse(response);
         m_AppData.name = GetJsonValue(response, "appName");
         m_AppData.version = GetJsonValue(response, "appVersion");
         m_AppData.status = GetJsonValue(response, "appStatus");
@@ -159,6 +160,7 @@ namespace Authenticity {
         std::string response = SendRequest("/auth/check", "POST", body.dump());
         
         if (IsTrue(GetJsonValue(response, "success"))) {
+            ApplySubscriptionResponse(response);
             m_LastError.clear();
             return true;
         }
@@ -186,6 +188,33 @@ namespace Authenticity {
         m_Session.isValid = false;
         m_LastError = JsonError(response, "Session validation failed");
         return false;
+    }
+
+    void Client::ApplySubscriptionResponse(const std::string& response) {
+        try {
+            const auto data = json::parse(response);
+            if (data.contains("subscriptionId")) m_Session.subscriptionId = data["subscriptionId"].is_string() ? data["subscriptionId"].get<std::string>() : "";
+            if (data.contains("subscriptionName")) m_Session.subscriptionName = data["subscriptionName"].is_string() ? data["subscriptionName"].get<std::string>() : "";
+            if (data.contains("level") && data["level"].is_number_integer()) m_Session.level = data["level"].get<int>();
+            if (data.contains("features") && data["features"].is_array()) {
+                m_Session.features.clear();
+                for (const auto& item : data["features"]) if (item.is_string()) m_Session.features.push_back(item.get<std::string>());
+            }
+            if (data.contains("limits") && data["limits"].is_object()) {
+                m_Session.limits.clear();
+                for (auto it = data["limits"].begin(); it != data["limits"].end(); ++it)
+                    if (it.value().is_number_integer() && it.value().get<int>() >= 0) m_Session.limits[it.key()] = it.value().get<int>();
+            }
+        } catch (...) { /* Preserve the last known entitlements on malformed JSON. */ }
+    }
+
+    bool Client::HasFeature(const std::string& feature) {
+        if (feature.empty() || !m_Session.isValid || m_Session.token.empty()) return false;
+        const json body = {{"token", m_Session.token}, {"appId", m_AppId}, {"hwid", m_Hwid}, {"feature", feature}};
+        const std::string response = SendRequest("/auth/check", "POST", body.dump());
+        if (!IsTrue(GetJsonValue(response, "success"))) return false;
+        ApplySubscriptionResponse(response);
+        return true;
     }
 
     std::string Client::GetVariable(const std::string& name) {

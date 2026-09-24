@@ -94,3 +94,7 @@ for the complete public API and a runnable example.
 - Keep the blocking calls off your UI thread when integrating into a graphical
   application.
 - Treat downloaded files and remote variables as untrusted input.
+
+## Subscription entitlements
+
+`Session` exposes `subscription_id`, `subscription_name`, `features`, and `limits` alongside `level`. Login populates the values and `check_session()` refreshes them. Call `client.has_feature("export")` for a server-side feature check; denial does not invalidate the session. Create templates in Dashboard → Subscriptions and assign them to a license or directly to a user. A direct user assignment overrides the license assignment. Limits are configuration values; enforce application-specific quotas in your trusted backend.

@@ -21,6 +21,14 @@ export interface Session {
   hwid: string;
   /** The access level granted by the server. */
   level: number;
+  /** Assigned subscription template, or null for legacy/unassigned access. */
+  subscriptionId: string | null;
+  /** Human-readable name of the assigned subscription, if any. */
+  subscriptionName: string | null;
+  /** Feature IDs granted by the assigned subscription. */
+  features: string[];
+  /** Configured numeric limits keyed by limit name. */
+  limits: Record<string, number>;
   /** True while the session is considered valid. */
   isValid: boolean;
   /** An optional update/download link. Login responses do not include it. */

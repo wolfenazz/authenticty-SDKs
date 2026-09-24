@@ -1,5 +1,10 @@
 package com.authenticity;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 /**
  * Represents the user's session information returned by a successful login.
  */
@@ -10,6 +15,10 @@ public class Session {
     private String ip = "";
     private String hwid = "";
     private int level = 0;
+    private String subscriptionId;
+    private String subscriptionName;
+    private List<String> features = new ArrayList<>();
+    private Map<String, Integer> limits = new HashMap<>();
     private boolean isValid = false;
     private String updateLink = "";
 
@@ -60,6 +69,15 @@ public class Session {
     public void setLevel(int level) {
         this.level = level;
     }
+
+    public String getSubscriptionId() { return subscriptionId; }
+    public void setSubscriptionId(String value) { subscriptionId = value; }
+    public String getSubscriptionName() { return subscriptionName; }
+    public void setSubscriptionName(String value) { subscriptionName = value; }
+    public List<String> getFeatures() { return new ArrayList<>(features); }
+    public void setFeatures(List<String> value) { features = value == null ? new ArrayList<>() : new ArrayList<>(value); }
+    public Map<String, Integer> getLimits() { return new HashMap<>(limits); }
+    public void setLimits(Map<String, Integer> value) { limits = value == null ? new HashMap<>() : new HashMap<>(value); }
 
     public boolean isValid() {
         return isValid;

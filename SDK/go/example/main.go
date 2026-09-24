@@ -76,6 +76,9 @@ func main() {
 	}
 
 	// Chat: list channels and messages.
+	if profile, ok := client.GetChatProfile(); ok {
+		fmt.Printf("Chat profile: %s (%s)\n", profile.Nickname, profile.AvatarID)
+	}
 	channels := client.GetChannels()
 	fmt.Printf("Channels: %d\n", len(channels))
 	for _, ch := range channels {

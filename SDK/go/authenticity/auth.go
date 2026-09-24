@@ -1,5 +1,7 @@
 package authenticity
 
+import "encoding/json"
+
 // Login authenticates using the client's configured OwnerID, AppID and
 // LicenseKey. It returns true on success and populates the Session and AppData.
 func (c *Client) Login() bool {
@@ -126,6 +128,10 @@ func (c *Client) applyLoginResponse(resp jsonResponse) bool {
 		IP:         resp.getString("ip", ""),
 		Hwid:       resp.getString("hwid", c.Hwid),
 		Level:      resp.getInt("level", 0),
+		SubscriptionID: resp.getString("subscriptionId", ""),
+		SubscriptionName: resp.getString("subscriptionName", ""),
+		Features:   responseFeatures(resp),
+		Limits:     responseLimits(resp),
 		IsValid:    true,
 		UpdateLink: resp.getString("updateLink", ""),
 	}
@@ -161,6 +167,7 @@ func (c *Client) CheckSession() bool {
 	ok := resp.getBool("success", false)
 	if ok {
 		c.Session.IsValid = true
+		c.applySubscriptionResponse(resp)
 		c.setErr("")
 		return true
 	}
@@ -180,6 +187,49 @@ func (c *Client) CheckSession() bool {
 		c.setErr("authenticity: session check failed")
 	}
 	return false
+}
+
+func responseFeatures(resp jsonResponse) []string {
+	values := resp.getArray("features")
+	features := make([]string, 0, len(values))
+	for _, value := range values {
+		if feature, ok := value.(string); ok { features = append(features, feature) }
+	}
+	return features
+}
+
+func responseLimits(resp jsonResponse) map[string]int {
+	limits := make(map[string]int)
+	values, ok := resp["limits"].(map[string]interface{})
+	if !ok { return limits }
+	for key, value := range values {
+		switch number := value.(type) {
+		case float64: if number >= 0 { limits[key] = int(number) }
+		case int: if number >= 0 { limits[key] = number }
+		case json.Number: if n, err := number.Int64(); err == nil && n >= 0 { limits[key] = int(n) }
+		}
+	}
+	return limits
+}
+
+func (c *Client) applySubscriptionResponse(resp jsonResponse) {
+	if _, ok := resp["subscriptionId"]; ok { c.Session.SubscriptionID = resp.getString("subscriptionId", "") }
+	if _, ok := resp["subscriptionName"]; ok { c.Session.SubscriptionName = resp.getString("subscriptionName", "") }
+	if _, ok := resp["level"]; ok { c.Session.Level = resp.getInt("level", c.Session.Level) }
+	if _, ok := resp["features"]; ok { c.Session.Features = responseFeatures(resp) }
+	if _, ok := resp["limits"]; ok { c.Session.Limits = responseLimits(resp) }
+}
+
+// HasFeature asks the server to authorize a named feature for this session.
+// A denied feature does not invalidate the session.
+func (c *Client) HasFeature(feature string) bool {
+	if feature == "" || !c.Session.IsValid || c.Session.Token == "" { return false }
+	resp, err := c.doJSONRequest(endpointCheck, map[string]interface{}{
+		"token": c.Session.Token, "appId": c.AppID, "hwid": c.Hwid, "feature": feature,
+	}, true)
+	if err != nil || !resp.getBool("success", false) { return false }
+	c.applySubscriptionResponse(resp)
+	return true
 }
 
 // CheckBlacklist reports whether the current hardware is blacklisted. The

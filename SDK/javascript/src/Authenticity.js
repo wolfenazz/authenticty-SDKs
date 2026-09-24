@@ -286,6 +286,10 @@ class Authenticity {
       ip: '',
       hwid: '',
       level: 0,
+      subscriptionId: null,
+      subscriptionName: null,
+      features: [],
+      limits: {},
       isValid: false,
       updateLink: '',
     };
@@ -567,6 +571,10 @@ class Authenticity {
       ip: toStr(resp.ip),
       hwid: toStr(resp.hwid) || this._hwid,
       level: toInt(resp.level, 0),
+      subscriptionId: toStr(resp.subscriptionId) || null,
+      subscriptionName: toStr(resp.subscriptionName) || null,
+      features: Array.isArray(resp.features) ? resp.features.filter((v) => typeof v === 'string') : [],
+      limits: this._validLimits(resp.limits),
       isValid: true,
       updateLink: toStr(resp.updateLink),
     };
@@ -596,6 +604,7 @@ class Authenticity {
     const resp = await this._request(EP.check, body, true);
     if (asBool(resp.success)) {
       this._session.isValid = true;
+      this._applySubscriptionFields(resp);
       this._lastError = '';
       return true;
     }
@@ -613,6 +622,37 @@ class Authenticity {
       this._lastError = 'authenticity: session check failed';
     }
     return false;
+  }
+
+  _validLimits(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+    return Object.fromEntries(Object.entries(value).filter(([, n]) =>
+      typeof n === 'number' && Number.isFinite(n) && n >= 0));
+  }
+
+  _applySubscriptionFields(resp) {
+    if (Object.prototype.hasOwnProperty.call(resp, 'subscriptionId')) {
+      this._session.subscriptionId = toStr(resp.subscriptionId) || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(resp, 'subscriptionName')) {
+      this._session.subscriptionName = toStr(resp.subscriptionName) || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(resp, 'level')) this._session.level = toInt(resp.level, this._session.level);
+    if (Object.prototype.hasOwnProperty.call(resp, 'features')) {
+      this._session.features = Array.isArray(resp.features) ? resp.features.filter((v) => typeof v === 'string') : [];
+    }
+    if (Object.prototype.hasOwnProperty.call(resp, 'limits')) this._session.limits = this._validLimits(resp.limits);
+  }
+
+  /** Ask the server whether the active subscription grants a feature. */
+  async hasFeature(feature) {
+    if (!feature || !this._session.isValid || !this._session.token) return false;
+    const resp = await this._request(EP.check, {
+      token: this._session.token, appId: this._appId, hwid: this._hwid, feature,
+    }, true);
+    const allowed = asBool(resp.success);
+    if (allowed) this._applySubscriptionFields(resp);
+    return allowed;
   }
 
   /**
@@ -982,7 +1022,7 @@ class Authenticity {
 
   /**
    * Return the current session state.
-   * @returns {object} {token, expiry, username, ip, hwid, level, isValid, updateLink}
+   * @returns {object} {token, expiry, username, ip, hwid, level, subscriptionId, subscriptionName, features, limits, isValid, updateLink}
    */
   getSession() {
     return Object.assign({}, this._session);

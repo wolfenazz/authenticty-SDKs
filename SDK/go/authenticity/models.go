@@ -36,6 +36,13 @@ type Session struct {
 	Hwid string
 	// Level is the access level granted by the server.
 	Level int
+	// SubscriptionID and SubscriptionName identify the assigned access template.
+	SubscriptionID   string
+	SubscriptionName string
+	// Features contains the feature IDs granted by the subscription.
+	Features []string
+	// Limits contains configured numeric limits keyed by name.
+	Limits map[string]int
 	// IsValid is true while the session is considered valid.
 	IsValid bool
 	// UpdateLink holds an optional update/download link. Login responses do not

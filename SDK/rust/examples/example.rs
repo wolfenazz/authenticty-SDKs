@@ -8,7 +8,12 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     // args[0] is the binary path.
     let (owner, app, url, version) = match args.len() {
-        5 => (args[1].clone(), args[2].clone(), args[3].clone(), args[4].clone()),
+        5 => (
+            args[1].clone(),
+            args[2].clone(),
+            args[3].clone(),
+            args[4].clone(),
+        ),
         _ => {
             eprintln!("Usage: authenticity_example <ownerId> <appId> <apiUrl> <version>");
             std::process::exit(1);
@@ -59,11 +64,19 @@ fn main() {
     // --- Chat ----------------------------------------------------------------
     println!("\n=== Channels ===");
     for ch in client.get_channels() {
-        println!("  channel: id={} name={} cooldown={}{}",
-            ch.id, ch.name, ch.cooldown_time, ch.cooldown_unit);
+        println!(
+            "  channel: id={} name={} cooldown={}{}",
+            ch.id, ch.name, ch.cooldown_time, ch.cooldown_unit
+        );
     }
 
     println!("\n=== Messages (all) ===");
+    if let Some(profile) = client.get_chat_profile() {
+        println!(
+            "  chat profile: {} ({})",
+            profile.nickname, profile.avatar_id
+        );
+    }
     for m in client.get_messages("all") {
         println!("  [{}] {}: {}", m.time_sent, m.sender, m.content);
     }

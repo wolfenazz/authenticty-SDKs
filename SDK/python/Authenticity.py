@@ -75,6 +75,10 @@ class Session(Dict[str, Any]):
             ip="",
             hwid="",
             level=0,
+            subscription_id=None,
+            subscription_name=None,
+            features=[],
+            limits={},
             is_valid=False,
             update_link="",
         )
@@ -320,6 +324,42 @@ class Authenticity:
         self._last_error = self._json_value(response, "message")
         return False
 
+    def has_feature(self, feature: str) -> bool:
+        """Ask the server whether the current subscription grants a feature."""
+        if not feature or not self._session["is_valid"] or not self._session["token"]:
+            return False
+        response = self._request(
+            "/auth/check", "POST",
+            {"token": self._session["token"], "appId": self._app_id,
+             "hwid": self._hwid, "feature": feature},
+        )
+        if self._json_value(response, "success") != "true":
+            return False
+        self._apply_subscription_response(response)
+        return True
+
+    def _apply_subscription_response(self, response: str) -> None:
+        """Refresh the local entitlement snapshot from an auth response."""
+        try:
+            payload = json.loads(response)
+        except (TypeError, ValueError):
+            return
+        if not isinstance(payload, dict):
+            return
+        if "subscriptionId" in payload:
+            self._session["subscription_id"] = payload.get("subscriptionId")
+        if "subscriptionName" in payload:
+            self._session["subscription_name"] = payload.get("subscriptionName")
+        if isinstance(payload.get("level"), int):
+            self._session["level"] = payload["level"]
+        if isinstance(payload.get("features"), list):
+            self._session["features"] = [x for x in payload["features"] if isinstance(x, str)]
+        if isinstance(payload.get("limits"), dict):
+            self._session["limits"] = {
+                key: value for key, value in payload["limits"].items()
+                if isinstance(key, str) and isinstance(value, int) and value >= 0
+            }
+
     def check_session(self) -> bool:
         """Validate the current session (heartbeat). Returns True while valid."""
         if not self._session["is_valid"]:
@@ -329,6 +369,7 @@ class Authenticity:
         response = self._request("/auth/check", "POST", body)
 
         if self._json_value(response, "success") == "true":
+            self._apply_subscription_response(response)
             return True
 
         is_expired = self._json_value(response, "expired") == "true"
@@ -809,6 +850,8 @@ class Authenticity:
         self._session["update_link"] = self._json_value(response, "updateLink")
         if self._json_value(response, "success") != "true":
             return False
+
+        self._apply_subscription_response(response)
 
         token = self._json_value(response, "token")
         if not token:

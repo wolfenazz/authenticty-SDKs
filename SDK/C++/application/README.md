@@ -148,3 +148,7 @@ For support and documentation, visit the Authenticity dashboard or contact suppo
 ## License
 
 This SDK is part of the Authenticity authentication system. Usage is subject to your Authenticity service agreement.
+
+## Subscription entitlements
+
+`Session` includes `subscriptionId`, `subscriptionName`, `features`, and `limits` alongside `level`. Login populates these fields and `CheckSession()` refreshes them. Call `client.HasFeature("export")` for a server-side feature check; denial does not invalidate the session. Create templates in Dashboard → Subscriptions and assign them to a license or directly to a user. A direct user assignment overrides the license assignment. Limits are configuration values; enforce application-specific quotas in your trusted backend.

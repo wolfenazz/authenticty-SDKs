@@ -107,3 +107,7 @@ logs, chat, webhooks, and a heartbeat loop.
 - `apiUrl` must be the full base URL **including** `/api/v1/client`.
 - HWID uses the same DJB2 algorithm as the other Authenticity SDKs so a user's
   hardware ID is consistent regardless of which SDK builds your client.
+
+## Subscription entitlements
+
+`client:getSession()` returns `subscriptionId`, `subscriptionName`, `features`, and `limits` alongside `level`. Login populates the values and `checkSession()` refreshes them. Call `client:hasFeature("export")` for a server-side feature check; denial does not invalidate the session. Create templates in Dashboard → Subscriptions and assign them to a license or directly to a user. A direct user assignment overrides the license assignment. Limits are configuration values; enforce application-specific quotas in your trusted backend.

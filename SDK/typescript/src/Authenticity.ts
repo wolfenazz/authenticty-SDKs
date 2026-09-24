@@ -243,6 +243,10 @@ export class Authenticity {
       ip: "",
       hwid: "",
       level: 0,
+      subscriptionId: null,
+      subscriptionName: null,
+      features: [],
+      limits: {},
       isValid: false,
       updateLink: "",
     };
@@ -391,6 +395,11 @@ export class Authenticity {
       ip: getString(resp, "ip", ""),
       hwid: getString(resp, "hwid", this.hwid),
       level: getInt(resp, "level", 0),
+      subscriptionId: getString(resp, "subscriptionId") || null,
+      subscriptionName: getString(resp, "subscriptionName") || null,
+      features: (getArray(resp, "features") || []).filter((v): v is string => typeof v === "string"),
+      limits: Object.fromEntries(Object.entries((resp.limits && typeof resp.limits === "object" ? resp.limits : {}) as Record<string, unknown>)
+        .filter((entry): entry is [string, number] => typeof entry[1] === "number" && Number.isFinite(entry[1]) && entry[1] >= 0)),
       isValid: true,
       updateLink: getString(resp, "updateLink", ""),
     };
@@ -514,6 +523,7 @@ export class Authenticity {
     const ok = getBool(resp, "success", false);
     if (ok) {
       this.session.isValid = true;
+      this.applySubscriptionFields(resp);
       this.setErr("");
       return true;
     }
@@ -531,6 +541,29 @@ export class Authenticity {
       this.setErr("authenticity: session check failed");
     }
     return false;
+  }
+
+  /** Refresh subscription entitlements from an auth/check response. */
+  private applySubscriptionFields(resp: JsonRecord): void {
+    if ("subscriptionId" in resp) this.session.subscriptionId = getString(resp, "subscriptionId") || null;
+    if ("subscriptionName" in resp) this.session.subscriptionName = getString(resp, "subscriptionName") || null;
+    if ("level" in resp) this.session.level = getInt(resp, "level", this.session.level);
+    if ("features" in resp) this.session.features = (getArray(resp, "features") || []).filter((v): v is string => typeof v === "string");
+    if (resp.limits && typeof resp.limits === "object") {
+      this.session.limits = Object.fromEntries(Object.entries(resp.limits as Record<string, unknown>)
+        .filter((entry): entry is [string, number] => typeof entry[1] === "number" && Number.isFinite(entry[1]) && entry[1] >= 0));
+    }
+  }
+
+  /** Ask the server whether the active subscription grants a feature. */
+  async hasFeature(feature: string): Promise<boolean> {
+    if (!feature || !this.session.isValid || !this.session.token) return false;
+    const resp = await this.request(ENDPOINT.check, {
+      token: this.session.token, appId: this.appId, hwid: this.hwid, feature,
+    }, true);
+    const allowed = getBool(resp, "success", false);
+    if (allowed) this.applySubscriptionFields(resp);
+    return allowed;
   }
 
   /**

@@ -46,11 +46,11 @@ public class SDKTest {
             } else if (path.endsWith("/chat/channels")) {
                 reply = "{\"success\":\"true\",\"channels\":[{\"id\":\"c1\",\"name\":\"General\"}]}";
             } else if (path.endsWith("/chat/messages") && method.equals("POST")) {
-                reply = "{\"success\":\"true\",\"messages\":[{\"id\":\"m1\",\"channelId\":\"c1\",\"senderId\":\"user-1\",\"sender\":\"أهلا\",\"avatarId\":\"avatar-2\",\"content\":\"hi\"}]}";
+                reply = "{\"success\":\"true\",\"messages\":[{\"id\":\"m1\",\"channelId\":\"c1\",\"senderId\":\"user-1\",\"sender\":\"أهلا\",\"avatarId\":\"AVATAR_2\",\"content\":\"hi\"}]}";
             } else if (path.endsWith("/chat/messages") && method.equals("PUT")) {
                 reply = "{\"success\":\"true\",\"message\":\"Message sent\"}";
             } else if (path.endsWith("/chat/profile")) {
-                reply = "{\"success\":\"true\",\"profileId\":\"user-1\",\"nickname\":\"أهلا\",\"avatarId\":\"avatar-2\"}";
+                reply = "{\"success\":\"true\",\"profileId\":\"user-1\",\"nickname\":\"أهلا\",\"avatarId\":\"AVATAR_2\"}";
             } else if (path.equals("/file.bin")) {
                 byte[] data = "BYTES".getBytes(StandardCharsets.UTF_8);
                 exchange.sendResponseHeaders(200, data.length);
@@ -93,7 +93,7 @@ public class SDKTest {
         assertEquals(1, c.getMessages("c1").size(), "getMessages size");
         assertEquals("user-1", c.getMessages("c1").get(0).get("senderId"), "message sender ID");
         assertEquals("user-1", c.getChatProfile().get("id"), "getChatProfile");
-        assertEquals("أهلا", c.updateChatProfile("أهلا", "avatar-2").get("nickname"), "updateChatProfile");
+        assertEquals("أهلا", c.updateChatProfile("أهلا", "AVATAR_2").get("nickname"), "updateChatProfile");
         assertTrue(c.sendMessage("c1", "hey"), "sendMessage");
 
         byte[] file = c.downloadFile("f1");

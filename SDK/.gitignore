@@ -144,6 +144,8 @@ downloads/
 eggs/
 .eggs/
 lib/
+!ruby/lib/
+!ruby/lib/authenticity.rb
 lib64/
 parts/
 sdist/

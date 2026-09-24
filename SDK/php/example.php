@@ -96,6 +96,10 @@ foreach ($messages as $m) {
 }
 
 // Sending is opt-in so the example never publishes a comment by accident.
+$profile = $client->getChatProfile();
+if ($profile !== null) {
+    echo "Chat profile: {$profile['nickname']} ({$profile['avatarId']})" . PHP_EOL;
+}
 if (getenv('AUTH_SEND_COMMENT') === 'true' && !empty($channels[0]['id'])) {
     if ($client->sendMessage($channels[0]['id'], 'Hello from the PHP SDK example!')) {
         echo "Comment sent." . PHP_EOL;

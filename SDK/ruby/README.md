@@ -200,3 +200,7 @@ server without contacting the real API.
 ## License
 
 Provided as-is; see your Authenticity agreement for terms.
+
+## Subscription entitlements
+
+The session hash includes `subscription_id`, `subscription_name`, `features`, and `limits` alongside `level`. Login populates the values and `check_session` refreshes them. Call `client.has_feature("export")` for a server-side feature check; denial does not invalidate the session. Create templates in Dashboard → Subscriptions and assign them to a license or directly to a user. A direct user assignment overrides the license assignment. Limits are configuration values; enforce application-specific quotas in your trusted backend.

@@ -29,6 +29,10 @@ namespace Authenticity
         public string IP { get; set; } = "";
         public string Hwid { get; set; } = "";
         public int Level { get; set; } = 0;
+        public string SubscriptionId { get; set; } = null;
+        public string SubscriptionName { get; set; } = null;
+        public List<string> Features { get; set; } = new List<string>();
+        public Dictionary<string, int> Limits { get; set; } = new Dictionary<string, int>();
         public bool IsValid { get; set; } = false;
         public string UpdateLink { get; set; } = "";
     }
@@ -204,6 +208,7 @@ namespace Authenticity
                     
                     string levelStr = GetJsonValue(response, "level");
                     m_Session.Level = string.IsNullOrEmpty(levelStr) ? 0 : int.Parse(levelStr);
+                    ApplySubscriptionFields(response);
 
                     m_AppData.Name = GetJsonValue(response, "appName");
                     m_AppData.Version = GetJsonValue(response, "appVersion");
@@ -482,6 +487,7 @@ namespace Authenticity
 
                 if (GetJsonValue(response, "success") == "true")
                 {
+                    ApplySubscriptionFields(response);
                     return true;
                 }
 
@@ -1213,6 +1219,39 @@ namespace Authenticity
         private string DictionaryToJson(Dictionary<string, string> dict)
         {
             return jsonSerializer.Serialize(dict);
+        }
+
+        /// <summary>Refresh the assigned subscription's entitlement snapshot.</summary>
+        private void ApplySubscriptionFields(string response)
+        {
+            try
+            {
+                var data = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(response);
+                if (data == null) return;
+                if (data.ContainsKey("subscriptionId")) m_Session.SubscriptionId = data["subscriptionId"] as string;
+                if (data.ContainsKey("subscriptionName")) m_Session.SubscriptionName = data["subscriptionName"] as string;
+                if (data.ContainsKey("level"))
+                    int.TryParse(Convert.ToString(data["level"], CultureInfo.InvariantCulture), out m_Session.Level);
+                if (data.TryGetValue("features", out object rawFeatures) && rawFeatures is ArrayList featureList)
+                    m_Session.Features = featureList.OfType<string>().ToList();
+                if (data.TryGetValue("limits", out object rawLimits) && rawLimits is Dictionary<string, object> limitValues)
+                    m_Session.Limits = limitValues.Where(x => int.TryParse(Convert.ToString(x.Value, CultureInfo.InvariantCulture), out int n) && n >= 0)
+                        .ToDictionary(x => x.Key, x => Convert.ToInt32(x.Value, CultureInfo.InvariantCulture));
+            }
+            catch { /* Keep the last known entitlement snapshot on malformed data. */ }
+        }
+
+        /// <summary>Ask the server whether the active subscription grants a feature.</summary>
+        public bool HasFeature(string feature)
+        {
+            if (string.IsNullOrWhiteSpace(feature) || !m_Session.IsValid || string.IsNullOrEmpty(m_Session.Token)) return false;
+            var body = new Dictionary<string, string> {
+                { "token", m_Session.Token }, { "appId", m_AppId }, { "hwid", m_Hwid }, { "feature", feature }
+            };
+            string response = SendRequest("/auth/check", "POST", DictionaryToJson(body));
+            if (GetJsonValue(response, "success") != "true") return false;
+            ApplySubscriptionFields(response);
+            return true;
         }
 
         /// <summary>

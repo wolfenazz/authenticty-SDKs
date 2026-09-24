@@ -581,6 +581,10 @@ function Client.new(ownerId, appId, apiUrl, version, licenseKey, hwid, hash)
         ip = "",
         hwid = "",
         level = 0,
+        subscriptionId = nil,
+        subscriptionName = nil,
+        features = {},
+        limits = {},
         isValid = false,
         updateLink = "",
     }
@@ -624,6 +628,25 @@ local function api_put(self, endpoint, body)
 end
 
 -- Populate session/appData from a successful login response.
+local function apply_subscription_response(self, data)
+    if data.subscriptionId ~= nil then self.session.subscriptionId = data.subscriptionId end
+    if data.subscriptionName ~= nil then self.session.subscriptionName = data.subscriptionName end
+    if data.level ~= nil then self.session.level = tonumber(data.level) or self.session.level end
+    if type(data.features) == "table" then
+        self.session.features = {}
+        for _, feature in ipairs(data.features) do
+            if type(feature) == "string" then self.session.features[#self.session.features + 1] = feature end
+        end
+    end
+    if type(data.limits) == "table" then
+        self.session.limits = {}
+        for key, value in pairs(data.limits) do
+            local limit = tonumber(value)
+            if type(key) == "string" and limit and limit >= 0 then self.session.limits[key] = math.floor(limit) end
+        end
+    end
+end
+
 local function apply_login_response(self, data)
     local token = data.token or ""
     if token == "" then
@@ -638,6 +661,7 @@ local function apply_login_response(self, data)
     self.session.ip = data.ip or ""
     self.session.hwid = self.hwid or ""
     self.session.level = tonumber(data.level) or 0
+    apply_subscription_response(self, data)
     -- login responses do not include updateLink; tolerate its absence.
     self.session.updateLink = data.updateLink or ""
     self.session.isValid = true
@@ -771,6 +795,7 @@ function Client:checkSession()
 
     if data.success == true or data.success == "true" then
         self.session.isValid = true
+        apply_subscription_response(self, data)
         self.lastError = nil
         return true
     end
@@ -783,6 +808,17 @@ function Client:checkSession()
         self.lastError = data.reason or data.message or "Session invalid"
     end
     return false
+end
+
+--- Ask the server whether the current subscription grants a feature.
+function Client:hasFeature(feature)
+    if type(feature) ~= "string" or feature == "" or not self.session.isValid then return false end
+    local data = api_post(self, "/auth/check", {
+        token = self.session.token, appId = self.appId, hwid = self.hwid, feature = feature,
+    })
+    if not data or not (data.success == true or data.success == "true") then return false end
+    apply_subscription_response(self, data)
+    return true
 end
 
 --- Check whether this machine (hwid) is blacklisted.

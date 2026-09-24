@@ -104,3 +104,7 @@ a user comment with `PUT /chat/messages`.
 | `apiUrl`      | string | Base URL that **must already end with** `/api/v1/client`.                |
 | `version`     | string | The client/application version reported to the server.                   |
 | `licenseKey?` | string | Optional license key used by `login()`.                                  |
+
+## Subscription entitlements
+
+`getSession()` includes `subscriptionId`, `subscriptionName`, `features`, and `limits` alongside `level`. Login populates the values and `checkSession()` refreshes them. Call `await client.hasFeature("export")` for a server-side feature check; denial does not invalidate the session. Create templates in Dashboard → Subscriptions and assign them to a license or directly to a user. A direct user assignment overrides the license assignment. Limits are configuration values; enforce application-specific quotas in your trusted backend.

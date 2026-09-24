@@ -153,6 +153,10 @@ class Authenticity
             'ip'          => '',
             'hwid'        => '',
             'level'       => 0,
+            'subscriptionId' => null,
+            'subscriptionName' => null,
+            'features'    => array(),
+            'limits'      => array(),
             'isValid'     => false,
             'updateLink'  => '',
         );
@@ -313,6 +317,7 @@ class Authenticity
         }
         if ($this->isSuccess($resp)) {
             $this->session['isValid'] = true;
+            $this->applySubscriptionFields($resp);
             $this->lastError = '';
             return true;
         }
@@ -330,6 +335,34 @@ class Authenticity
             $this->lastError = 'authenticity: session check failed';
         }
         return false;
+    }
+
+    /** Ask the server whether the current subscription grants a feature. */
+    public function hasFeature($feature)
+    {
+        if (!is_string($feature) || trim($feature) === '' || !$this->session['isValid'] || $this->session['token'] === '') return false;
+        $resp = $this->request('/auth/check', array(
+            'token' => $this->session['token'], 'appId' => $this->appId,
+            'hwid' => $this->hwid, 'feature' => $feature,
+        ), true);
+        if ($resp === null || !$this->isSuccess($resp)) return false;
+        $this->applySubscriptionFields($resp);
+        return true;
+    }
+
+    private function applySubscriptionFields($resp)
+    {
+        if (array_key_exists('subscriptionId', $resp)) $this->session['subscriptionId'] = $resp['subscriptionId'];
+        if (array_key_exists('subscriptionName', $resp)) $this->session['subscriptionName'] = $resp['subscriptionName'];
+        if (array_key_exists('level', $resp)) $this->session['level'] = $this->getInt($resp, 'level', $this->session['level']);
+        if (isset($resp['features']) && is_array($resp['features']))
+            $this->session['features'] = array_values(array_filter($resp['features'], 'is_string'));
+        if (isset($resp['limits']) && is_array($resp['limits'])) {
+            $limits = array();
+            foreach ($resp['limits'] as $key => $value)
+                if (is_string($key) && is_int($value) && $value >= 0) $limits[$key] = $value;
+            $this->session['limits'] = $limits;
+        }
     }
 
 
@@ -1184,9 +1217,14 @@ class Authenticity
             'ip'         => $this->getString($resp, 'ip', ''),
             'hwid'       => $this->getString($resp, 'hwid', $this->hwid),
             'level'      => $this->getInt($resp, 'level', 0),
+            'subscriptionId' => isset($resp['subscriptionId']) ? $resp['subscriptionId'] : null,
+            'subscriptionName' => isset($resp['subscriptionName']) ? $resp['subscriptionName'] : null,
+            'features' => isset($resp['features']) && is_array($resp['features']) ? array_values(array_filter($resp['features'], 'is_string')) : array(),
+            'limits' => isset($resp['limits']) && is_array($resp['limits']) ? $resp['limits'] : array(),
             'isValid'    => true,
             'updateLink' => $this->getString($resp, 'updateLink', ''),
         );
+        $this->applySubscriptionFields($resp);
         $this->appData = array(
             'name'     => $this->getString($resp, 'appName', ''),
             'version'  => $this->getString($resp, 'appVersion', ''),

@@ -14,6 +14,10 @@ namespace Authenticity {
         std::string ip;
         std::string hwid;
         int level;
+        std::string subscriptionId;
+        std::string subscriptionName;
+        std::vector<std::string> features;
+        std::map<std::string, int> limits;
         bool isValid;
         std::string updateLink;
     };
@@ -85,6 +89,7 @@ namespace Authenticity {
 
         // Check if the current session is still valid (Heartbeat)
         bool CheckSession();
+        bool HasFeature(const std::string& feature);
         UpdateInfo CheckForUpdate();
 
         // Check if the current IP is blacklisted
@@ -141,6 +146,7 @@ namespace Authenticity {
         static bool DeleteCredentials();
 
     private:
+        void ApplySubscriptionResponse(const std::string& response);
         std::string m_OwnerId;
         std::string m_AppId;
         std::string m_LicenseKey;

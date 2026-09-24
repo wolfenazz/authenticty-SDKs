@@ -209,6 +209,7 @@ public class Authenticity {
         String response = request("/auth/check", "POST", body);
         Map<String, Object> json = Json.parse(response);
         if ("true".equals(Json.asString(json, "success"))) {
+            applySubscriptionFields(json);
             return true;
         }
 
@@ -233,6 +234,42 @@ public class Authenticity {
             }
         }
         return false;
+    }
+
+    /** Ask the server whether the active subscription grants a feature. */
+    public boolean hasFeature(String feature) {
+        if (feature == null || feature.trim().isEmpty() || !mSession.isValid() || mSession.getToken().isEmpty()) return false;
+        Map<String, Object> body = new HashMap<>();
+        body.put("token", mSession.getToken());
+        body.put("appId", mAppId);
+        body.put("hwid", mHwid);
+        body.put("feature", feature);
+        Map<String, Object> response = Json.parse(request("/auth/check", "POST", body));
+        if (!"true".equals(Json.asString(response, "success"))) return false;
+        applySubscriptionFields(response);
+        return true;
+    }
+
+    private void applySubscriptionFields(Map<String, Object> json) {
+        if (json.containsKey("subscriptionId")) mSession.setSubscriptionId(Json.asString(json, "subscriptionId"));
+        if (json.containsKey("subscriptionName")) mSession.setSubscriptionName(Json.asString(json, "subscriptionName"));
+        if (json.containsKey("level")) {
+            try { mSession.setLevel(Integer.parseInt(Json.asString(json, "level"))); } catch (NumberFormatException ignored) { }
+        }
+        if (json.containsKey("features")) {
+            List<String> features = new ArrayList<>();
+            for (Object item : Json.asList(json, "features")) if (item instanceof String) features.add((String) item);
+            mSession.setFeatures(features);
+        }
+        Object rawLimits = Json.get(json, "limits");
+        if (rawLimits instanceof Map) {
+            Map<String, Integer> limits = new HashMap<>();
+            for (Map.Entry<?, ?> entry : ((Map<?, ?>) rawLimits).entrySet()) {
+                if (entry.getKey() instanceof String && entry.getValue() instanceof Number && ((Number) entry.getValue()).intValue() >= 0)
+                    limits.put((String) entry.getKey(), ((Number) entry.getValue()).intValue());
+            }
+            mSession.setLimits(limits);
+        }
     }
 
     /**
@@ -786,6 +823,7 @@ public class Authenticity {
         mSession.setIp(Json.asString(json, "ip"));
         mSession.setHwid(mHwid);
         mSession.setUpdateLink(Json.asString(json, "updateLink"));
+        applySubscriptionFields(json);
         try {
             String level = Json.asString(json, "level");
             mSession.setLevel(level.isEmpty() ? 0 : Integer.parseInt(level));

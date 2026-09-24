@@ -179,3 +179,7 @@ Generation is best-effort and returns `"UNKNOWN_HWID"` on total failure.
 
 Validation: `loginType 1` (license) is valid when `licenseKey` is non-empty;
 `loginType 2` (username/password) is valid when both are non-empty.
+
+## Subscription entitlements
+
+The session returned by `getSession()` includes `subscriptionId`, `subscriptionName`, `features`, and `limits` alongside `level`. Login populates the values and `checkSession()` refreshes them. Call `client.hasFeature("export")` for a server-side feature check; denial does not invalidate the session. Create templates in Dashboard → Subscriptions and assign them to a license or directly to a user. A direct user assignment overrides the license assignment. Limits are configuration values; enforce application-specific quotas in your trusted backend.

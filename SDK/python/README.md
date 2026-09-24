@@ -155,3 +155,7 @@ including auto-login, chat, variables, logs and a heartbeat loop.
   BIOS) and hashed with the same DJB2 algorithm as the C#/C++ SDKs so a user's
   HWID is consistent across languages.
 - Set `API_URL` to your full base URL *including* `/api/v1/client`.
+
+## Subscription entitlements
+
+`get_session()` includes `subscription_id`, `subscription_name`, `features`, and `limits` alongside `level`. Login populates the values and `check_session()` refreshes them. Call `client.has_feature("export")` for a server-side feature check; denial does not invalidate the session. Create templates in Dashboard → Subscriptions and assign them to a license or directly to a user. A direct user assignment overrides the license assignment. Limits are configuration values; enforce application-specific quotas in your trusted backend.

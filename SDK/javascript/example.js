@@ -78,6 +78,8 @@ async function main() {
   console.log('Webhook triggered:', ok, ok ? '' : client.getLastError());
 
   // Chat.
+  const profile = await client.getChatProfile();
+  if (profile) console.log('Chat profile:', profile.nickname, profile.avatarId);
   const channels = await client.getChannels();
   console.log('Channels:', channels.length);
   for (const ch of channels) {

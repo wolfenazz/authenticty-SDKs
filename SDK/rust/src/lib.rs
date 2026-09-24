@@ -37,6 +37,12 @@ pub struct Session {
     pub ip: String,
     pub hwid: String,
     pub level: i32,
+    #[serde(rename = "subscriptionId", default)]
+    pub subscription_id: Option<String>,
+    #[serde(rename = "subscriptionName", default)]
+    pub subscription_name: Option<String>,
+    pub features: Vec<String>,
+    pub limits: HashMap<String, i64>,
     pub is_valid: bool,
     pub update_link: String,
 }
@@ -66,7 +72,9 @@ pub struct UpdateInfo {
 pub struct Channel {
     pub id: String,
     pub name: String,
+    #[serde(rename = "cooldownUnit", alias = "cooldown_unit", default)]
     pub cooldown_unit: String,
+    #[serde(rename = "cooldownTime", alias = "cooldown_time", default)]
     pub cooldown_time: i32,
     /// Catch-all for any extra fields the server may return.
     #[serde(flatten)]
@@ -342,6 +350,7 @@ impl Client {
                 response_hwid
             };
             self.session.level = resp.get("level").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+            self.apply_subscription_response(&resp);
             self.session.is_valid = true;
             // login responses do not include updateLink; tolerate absence.
             self.session.update_link = str_field(&resp, "updateLink");
@@ -373,6 +382,7 @@ impl Client {
         let resp = self.post("/auth/register", body);
         let ok = bool_field(resp.get("success"));
         if ok {
+            self.apply_subscription_response(&resp);
             self.last_error.clear();
         } else if let Some(m) = resp.get("message").and_then(|v| v.as_str()) {
             self.last_error = m.to_string();
@@ -420,6 +430,39 @@ impl Client {
             self.session.expiry = String::new();
         }
         false
+    }
+
+    /// Ask the server whether the active subscription grants a named feature.
+    /// A denied feature does not invalidate the session.
+    pub fn has_feature(&mut self, feature: &str) -> bool {
+        if feature.is_empty() || self.session.token.is_empty() || !self.session.is_valid { return false; }
+        let mut body = HashMap::new();
+        body.insert("token".into(), self.session.token.clone().into());
+        body.insert("appId".into(), self.app_id.clone().into());
+        body.insert("hwid".into(), self.hwid.clone().into());
+        body.insert("feature".into(), feature.into());
+        let resp = self.post("/auth/check", body);
+        if !bool_field(resp.get("success")) { return false; }
+        self.apply_subscription_response(&resp);
+        true
+    }
+
+    fn apply_subscription_response(&mut self, resp: &serde_json::Value) {
+        if let Some(value) = resp.get("subscriptionId") {
+            self.session.subscription_id = value.as_str().map(str::to_owned);
+        }
+        if let Some(value) = resp.get("subscriptionName") {
+            self.session.subscription_name = value.as_str().map(str::to_owned);
+        }
+        if let Some(level) = resp.get("level").and_then(|v| v.as_i64()) { self.session.level = level as i32; }
+        if let Some(values) = resp.get("features").and_then(|v| v.as_array()) {
+            self.session.features = values.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect();
+        }
+        if let Some(values) = resp.get("limits").and_then(|v| v.as_object()) {
+            self.session.limits = values.iter().filter_map(|(key, value)|
+                value.as_i64().filter(|n| *n >= 0).map(|n| (key.clone(), n))
+            ).collect();
+        }
     }
 
     /// Check whether the current hardware id is blacklisted. Returns `true` if
@@ -1176,13 +1219,13 @@ mod parsing_tests {
 
     #[test]
     fn chat_identity_fields_decode() {
-        let message: Message = serde_json::from_str(r#"{"id":"m1","channelId":"general","senderId":"u1","sender":"أهلا","avatarId":"avatar-2","content":"**hi**","timeSent":"2026-01-01T00:00:00Z"}"#).unwrap();
+        let message: Message = serde_json::from_str(r#"{"id":"m1","channelId":"general","senderId":"u1","sender":"أهلا","avatarId":"AVATAR_2","content":"**hi**","timeSent":"2026-01-01T00:00:00Z"}"#).unwrap();
         assert_eq!(message.channel_id, "general");
         assert_eq!(message.sender_id, "u1");
-        assert_eq!(message.avatar_id, "avatar-2");
+        assert_eq!(message.avatar_id, "AVATAR_2");
         assert_eq!(message.sender, "أهلا");
         let profile: ChatProfile =
-            serde_json::from_str(r#"{"profileId":"u1","nickname":"أهلا","avatarId":"avatar-2"}"#)
+            serde_json::from_str(r#"{"profileId":"u1","nickname":"أهلا","avatarId":"AVATAR_2"}"#)
                 .unwrap();
         assert_eq!(profile.id, message.sender_id);
     }

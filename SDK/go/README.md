@@ -179,3 +179,7 @@ It is hashed with DJB2 (seed `5381`) followed by a second DJB2-XOR pass (seed
 `0xDEADBEEF`), producing a hex string that is consistent across the C#/C++/
 Python/Java/Go SDKs. Generation is best-effort and returns `"UNKNOWN_HWID"` on
 total failure.
+
+## Subscription entitlements
+
+`Session` includes `SubscriptionID`, `SubscriptionName`, `Features`, and `Limits` alongside `Level`. Login populates the values and `CheckSession()` refreshes them. Call `client.HasFeature("export")` for a server-side feature check; denial does not invalidate the session. Create templates in Dashboard → Subscriptions and assign them to a license or directly to a user. A direct user assignment overrides the license assignment. Limits are configuration values; enforce application-specific quotas in your trusted backend.

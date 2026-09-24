@@ -75,6 +75,8 @@ value = client.get_variable('welcome_message')
 puts "Variable 'welcome_message' = #{value.inspect}"
 
 # --- Chat ---------------------------------------------------------------------
+profile = client.get_chat_profile
+puts "Chat profile: #{profile['nickname']} (#{profile['avatarId']})" if profile
 channels = client.get_channels
 puts "Channels: #{channels.map { |c| c['name'] }.inspect}"
 

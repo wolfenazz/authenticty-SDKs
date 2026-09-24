@@ -79,6 +79,8 @@ for _, channel in ipairs(channels) do
 end
 
 -- Sending is opt-in so the example never publishes a comment by accident.
+local profile = client:getChatProfile()
+if profile then print("Chat profile:", profile.nickname, profile.avatarId) end
 if os.getenv("AUTH_SEND_COMMENT") == "true" and channels[1] and channels[1].id then
     if client:sendMessage(channels[1].id, "Hello from the Lua SDK example!") then
         print("Comment sent.")

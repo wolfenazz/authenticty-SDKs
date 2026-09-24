@@ -160,3 +160,7 @@ body keys. All 15 assertions pass (see "Build & Run").
 - `apiUrl` must be the full base URL **including** `/api/v1/client`.
 - HWID uses the same DJB2 algorithm as the other SDKs so a user's hardware ID is
   consistent regardless of which SDK your client is built with.
+
+## Subscription entitlements
+
+`Session` exposes `getSubscriptionId()`, `getSubscriptionName()`, `getFeatures()`, and `getLimits()` alongside `getLevel()`. Login populates the values and `checkSession()` refreshes them. Call `client.hasFeature("export")` for a server-side feature check; denial does not invalidate the session. Create templates in Dashboard → Subscriptions and assign them to a license or directly to a user. A direct user assignment overrides the license assignment. Limits are configuration values; enforce application-specific quotas in your trusted backend.
