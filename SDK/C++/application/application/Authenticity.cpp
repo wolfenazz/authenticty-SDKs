@@ -119,7 +119,6 @@ namespace Authenticity {
         if (m_Session.hwid.empty()) m_Session.hwid = m_Hwid;
         try { m_Session.level = std::stoi(GetJsonValue(response, "level")); }
         catch (...) { m_Session.level = 0; }
-        ApplySubscriptionResponse(response);
         m_AppData.name = GetJsonValue(response, "appName");
         m_AppData.version = GetJsonValue(response, "appVersion");
         m_AppData.status = GetJsonValue(response, "appStatus");
@@ -160,7 +159,6 @@ namespace Authenticity {
         std::string response = SendRequest("/auth/check", "POST", body.dump());
         
         if (IsTrue(GetJsonValue(response, "success"))) {
-            ApplySubscriptionResponse(response);
             m_LastError.clear();
             return true;
         }
@@ -188,33 +186,6 @@ namespace Authenticity {
         m_Session.isValid = false;
         m_LastError = JsonError(response, "Session validation failed");
         return false;
-    }
-
-    void Client::ApplySubscriptionResponse(const std::string& response) {
-        try {
-            const auto data = json::parse(response);
-            if (data.contains("subscriptionId")) m_Session.subscriptionId = data["subscriptionId"].is_string() ? data["subscriptionId"].get<std::string>() : "";
-            if (data.contains("subscriptionName")) m_Session.subscriptionName = data["subscriptionName"].is_string() ? data["subscriptionName"].get<std::string>() : "";
-            if (data.contains("level") && data["level"].is_number_integer()) m_Session.level = data["level"].get<int>();
-            if (data.contains("features") && data["features"].is_array()) {
-                m_Session.features.clear();
-                for (const auto& item : data["features"]) if (item.is_string()) m_Session.features.push_back(item.get<std::string>());
-            }
-            if (data.contains("limits") && data["limits"].is_object()) {
-                m_Session.limits.clear();
-                for (auto it = data["limits"].begin(); it != data["limits"].end(); ++it)
-                    if (it.value().is_number_integer() && it.value().get<int>() >= 0) m_Session.limits[it.key()] = it.value().get<int>();
-            }
-        } catch (...) { /* Preserve the last known entitlements on malformed JSON. */ }
-    }
-
-    bool Client::HasFeature(const std::string& feature) {
-        if (feature.empty() || !m_Session.isValid || m_Session.token.empty()) return false;
-        const json body = {{"token", m_Session.token}, {"appId", m_AppId}, {"hwid", m_Hwid}, {"feature", feature}};
-        const std::string response = SendRequest("/auth/check", "POST", body.dump());
-        if (!IsTrue(GetJsonValue(response, "success"))) return false;
-        ApplySubscriptionResponse(response);
-        return true;
     }
 
     std::string Client::GetVariable(const std::string& name) {
@@ -316,7 +287,12 @@ namespace Authenticity {
         }
 
         if (hRequest) {
-            // WinHTTP validates HTTPS certificates using the system trust store.
+            // Follow redirects (direct links often 302 to storage) and validate
+            // HTTPS certificates using the system trust store.
+            DWORD redirectPolicy = WINHTTP_OPTION_REDIRECT_POLICY_ALWAYS;
+            WinHttpSetOption(hRequest, WINHTTP_OPTION_REDIRECT_POLICY, &redirectPolicy, sizeof(redirectPolicy));
+            DWORD redirectLimit = 5;
+            WinHttpSetOption(hRequest, WINHTTP_OPTION_MAX_HTTP_AUTOMATIC_REDIRECTS, &redirectLimit, sizeof(redirectLimit));
 
             BOOL bResults = WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0);
             if (bResults) {
@@ -324,6 +300,21 @@ namespace Authenticity {
             }
 
             if (bResults) {
+                DWORD statusCode = 0;
+                DWORD statusSize = sizeof(statusCode);
+                if (WinHttpQueryHeaders(hRequest,
+                        WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+                        WINHTTP_HEADER_NAME_BY_INDEX, &statusCode, &statusSize,
+                        WINHTTP_NO_HEADER_INDEX)) {
+                    if (statusCode < 200 || statusCode >= 300) {
+                        m_LastError = "Download failed with HTTP status " + std::to_string(statusCode);
+                        WinHttpCloseHandle(hRequest);
+                        WinHttpCloseHandle(hConnect);
+                        WinHttpCloseHandle(hSession);
+                        return bytes;
+                    }
+                }
+
                 DWORD dwSize = 0;
                 do {
                     dwSize = 0;
@@ -337,9 +328,26 @@ namespace Authenticity {
                             bytes.push_back((unsigned char)pszOutBuffer[i]);
                         }
                     }
+                    else {
+                        delete[] pszOutBuffer;
+                        break;
+                    }
                     delete[] pszOutBuffer;
                 } while (true);
+
+                if (bytes.empty()) {
+                    m_LastError = "Download returned no data";
+                }
+                else {
+                    m_LastError.clear();
+                }
             }
+            else {
+                m_LastError = "Download request failed";
+            }
+        }
+        else {
+            m_LastError = "Failed to open download request";
         }
 
         if (hRequest) WinHttpCloseHandle(hRequest);
@@ -518,37 +526,6 @@ namespace Authenticity {
         if (!ok) m_LastError = JsonError(response, "Failed to send message");
         else m_LastError.clear();
         return ok;
-    }
-
-    bool Client::GetChatProfile(ChatProfile& profile) {
-        if (!m_Session.isValid) { m_LastError = "Session is invalid"; return false; }
-        const json body = {{"token", m_Session.token}, {"appId", m_AppId}};
-        const std::string response = SendRequest("/chat/profile", "POST", body.dump());
-        if (!IsTrue(GetJsonValue(response, "success"))) {
-            m_LastError = JsonError(response, "Failed to fetch chat profile");
-            return false;
-        }
-        profile.id = GetJsonValue(response, "profileId");
-        profile.nickname = GetJsonValue(response, "nickname");
-        profile.avatarId = GetJsonValue(response, "avatarId");
-        m_LastError.clear();
-        return true;
-    }
-
-    bool Client::UpdateChatProfile(const std::string& nickname, const std::string& avatarId, ChatProfile& profile) {
-        if (!m_Session.isValid) { m_LastError = "Session is invalid"; return false; }
-        const json body = {{"token", m_Session.token}, {"appId", m_AppId},
-                           {"nickname", nickname}, {"avatarId", avatarId}};
-        const std::string response = SendRequest("/chat/profile", "PUT", body.dump());
-        if (!IsTrue(GetJsonValue(response, "success"))) {
-            m_LastError = JsonError(response, "Failed to update chat profile");
-            return false;
-        }
-        profile.id = GetJsonValue(response, "profileId");
-        profile.nickname = GetJsonValue(response, "nickname");
-        profile.avatarId = GetJsonValue(response, "avatarId");
-        m_LastError.clear();
-        return true;
     }
 
     std::string Client::GetExecutableDirectory() {
@@ -742,10 +719,7 @@ namespace Authenticity {
                 if (!item.is_object()) continue;
                 ChatMessage message;
                 message.id = item.value("id", "");
-                message.channelId = item.value("channelId", "");
-                message.senderId = item.value("senderId", "");
                 message.sender = item.value("sender", item.value("author", ""));
-                message.avatarId = item.value("avatarId", "");
                 message.content = item.value("content", item.value("text", ""));
                 message.timeSent = item.value("timeSent", item.value("time_sent", item.value("timestamp", "")));
                 messages.push_back(message);

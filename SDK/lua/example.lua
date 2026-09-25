@@ -92,6 +92,29 @@ end
 -- Trigger a webhook
 client:triggerWebhook("onStart", "user logged in")
 
+-- File download check (opt-in). Set AUTH_FILE_ID to a file ID from
+-- dashboard/files, then verify the bytes land on disk and the dashboard
+-- Downloads counter increments after refresh.
+local fileId = os.getenv("AUTH_FILE_ID") or ""
+if fileId == "" then
+    print("Skip file download check (set AUTH_FILE_ID to test it)")
+else
+    local data = client:downloadFile(fileId)
+    if data and #data > 0 then
+        local out = "downloaded_" .. fileId .. ".bin"
+        local fh = io.open(out, "wb")
+        if fh then
+            fh:write(data)
+            fh:close()
+            print("Downloaded " .. #data .. " bytes -> " .. out .. " (verified)")
+        else
+            print("Download save failed:", client:getLastError())
+        end
+    else
+        print("Download failed:", client:getLastError())
+    end
+end
+
 print("\nHeartbeat every " .. CHECK_INTERVAL .. "s. Press Ctrl+C to stop.")
 while client:checkSession() do
     -- NOTE: block for CHECK_INTERVAL seconds without spinning.

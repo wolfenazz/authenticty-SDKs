@@ -98,6 +98,26 @@ fn main() {
         println!("Webhook failed: {}", client.get_last_error());
     }
 
+    // --- File download check (opt-in) ---------------------------------------
+    // Set AUTH_FILE_ID to a file ID from dashboard/files, then verify the
+    // bytes land on disk and the dashboard Downloads counter increments.
+    println!("\n=== File download ===");
+    match std::env::var("AUTH_FILE_ID") {
+        Ok(file_id) if !file_id.is_empty() => {
+            let data = client.download_file(&file_id);
+            if data.is_empty() {
+                println!("Download failed: {}", client.get_last_error());
+            } else {
+                let out = format!("downloaded_{file_id}.bin");
+                match std::fs::write(&out, &data) {
+                    Ok(()) => println!("Downloaded {} bytes -> {out} (verified)", data.len()),
+                    Err(e) => println!("Download save failed: {e}"),
+                }
+            }
+        }
+        _ => println!("Skip file download check (set AUTH_FILE_ID to test it)"),
+    }
+
     // --- Credentials ----------------------------------------------------------
     println!("\n=== Save credentials ===");
     if client.save_credentials(2, "", "username", "password") {

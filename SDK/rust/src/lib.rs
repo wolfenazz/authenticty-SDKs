@@ -245,15 +245,30 @@ impl Client {
     }
 
     /// Perform a raw GET (used for file downloads) and return the bytes.
+    /// Rejects non-2xx statuses so error pages are never mistaken for bytes.
     fn get_bytes(&mut self, url: &str) -> Option<Vec<u8>> {
         match self.http.get(url).send() {
-            Ok(resp) => match resp.bytes() {
-                Ok(b) => Some(b.to_vec()),
-                Err(e) => {
-                    self.last_error = format!("download read failed: {e}");
-                    None
+            Ok(resp) => {
+                let status = resp.status();
+                if !status.is_success() {
+                    self.last_error = format!("download failed with HTTP status {status}");
+                    return None;
                 }
-            },
+                match resp.bytes() {
+                    Ok(b) => {
+                        if b.is_empty() {
+                            self.last_error = "download returned no data".to_string();
+                            return None;
+                        }
+                        self.last_error.clear();
+                        Some(b.to_vec())
+                    }
+                    Err(e) => {
+                        self.last_error = format!("download read failed: {e}");
+                        None
+                    }
+                }
+            }
             Err(e) => {
                 self.last_error = format!("download request failed: {e}");
                 None
@@ -533,6 +548,10 @@ impl Client {
 
     /// Resolve the download URL for a file and fetch its raw bytes.
     pub fn download_file(&mut self, file_id: &str) -> Vec<u8> {
+        if file_id.is_empty() {
+            self.last_error = "authenticity: fileId is required".to_string();
+            return Vec::new();
+        }
         if self.session.token.is_empty() {
             self.last_error = "no active session".to_string();
             return Vec::new();
@@ -564,6 +583,10 @@ impl Client {
 
     /// Resolve the download URL and open it in the default browser.
     pub fn download_file_direct(&mut self, file_id: &str) -> bool {
+        if file_id.is_empty() {
+            self.last_error = "authenticity: fileId is required".to_string();
+            return false;
+        }
         if self.session.token.is_empty() {
             self.last_error = "no active session".to_string();
             return false;

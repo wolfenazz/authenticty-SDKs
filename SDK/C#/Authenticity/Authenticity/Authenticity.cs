@@ -636,7 +636,16 @@ namespace Authenticity
         /// <returns>The file content as bytes</returns>
         public byte[] DownloadFile(string fileId)
         {
-            if (!m_Session.IsValid) return new byte[0];
+            if (string.IsNullOrEmpty(fileId))
+            {
+                m_LastError = "authenticity: fileId is required";
+                return new byte[0];
+            }
+            if (!m_Session.IsValid)
+            {
+                if (string.IsNullOrEmpty(m_LastError)) m_LastError = "Session is invalid";
+                return new byte[0];
+            }
 
             try
             {
@@ -1605,6 +1614,11 @@ namespace Authenticity
 
         public bool DownloadFileDirect(string fileId)
         {
+            if (string.IsNullOrEmpty(fileId))
+            {
+                m_LastError = "authenticity: fileId is required";
+                return false;
+            }
             if (!m_Session.IsValid)
             {
                 m_LastError = "Session is invalid";

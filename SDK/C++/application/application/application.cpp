@@ -236,10 +236,6 @@ void ShowChatInterface(Authenticity::Client& client) {
                 break;
             }
             case 2: {
-                Authenticity::ChatProfile profile;
-                if (client.GetChatProfile(profile)) {
-                    std::cout << "Chat profile: " << profile.nickname << " (" << profile.avatarId << ")" << std::endl;
-                }
                 std::cout << skCrypt("Enter channel ID: ").decrypt();
                 std::string channelId;
                 std::getline(std::cin, channelId);
@@ -300,16 +296,51 @@ void ShowFileInterface(Authenticity::Client& client) {
         
         switch (choice) {
             case 1: {
-                std::cout << skCrypt("Enter file ID: ").decrypt();
+                std::cout << skCrypt("Enter file ID (or exact file name as shown in dashboard/files): ").decrypt();
                 std::string fileId;
                 std::getline(std::cin, fileId);
-                
+
+                if (fileId.empty()) {
+                    std::cout << skCrypt("File ID is required. Copy it from dashboard/files table (ID column).").decrypt() << std::endl;
+                    PauseExecution();
+                    break;
+                }
+
+                std::cout << skCrypt("Resolving download URL via /files/download...").decrypt() << std::endl;
                 std::vector<unsigned char> fileData = client.DownloadFile(fileId);
                 if (!fileData.empty()) {
                     std::cout << skCrypt("File downloaded successfully! Size: ").decrypt() << fileData.size() << skCrypt(" bytes").decrypt() << std::endl;
-                    // Here you could save the file or process it
+
+                    // End-to-end check: persist to disk and verify byte count.
+                    std::cout << skCrypt("Enter output filename [downloaded_<id>.bin]: ").decrypt();
+                    std::string outName;
+                    std::getline(std::cin, outName);
+                    if (outName.empty()) {
+                        outName = "downloaded_" + fileId + ".bin";
+                    }
+
+                    std::ofstream outFile(outName, std::ios::binary);
+                    if (!outFile.is_open()) {
+                        std::cout << skCrypt("Failed to open output file for writing: ").decrypt() << outName << std::endl;
+                    } else {
+                        outFile.write(reinterpret_cast<const char*>(fileData.data()), static_cast<std::streamsize>(fileData.size()));
+                        outFile.close();
+
+                        // Verify what landed on disk.
+                        std::ifstream check(outName, std::ios::binary | std::ios::ate);
+                        std::streamsize onDisk = check.is_open() ? static_cast<std::streamsize>(check.tellg()) : -1;
+                        if (onDisk == static_cast<std::streamsize>(fileData.size())) {
+                            std::cout << skCrypt("Saved and verified: ").decrypt() << outName
+                                      << skCrypt(" (").decrypt() << onDisk << skCrypt(" bytes).").decrypt() << std::endl;
+                            std::cout << skCrypt("Confirm in dashboard/files: refresh and check the Downloads counter increments.").decrypt() << std::endl;
+                        } else {
+                            std::cout << skCrypt("Saved but size mismatch. Expected ").decrypt() << fileData.size()
+                                      << skCrypt(", found ").decrypt() << onDisk << std::endl;
+                        }
+                    }
                 } else {
                     std::cout << skCrypt("Failed to download file: ").decrypt() << client.GetLastError() << std::endl;
+                    std::cout << skCrypt("Checklist: file ID exists in dashboard/files, session is logged in, subscription allows files, owner has Pro files feature.").decrypt() << std::endl;
                 }
                 PauseExecution();
                 break;

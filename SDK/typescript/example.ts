@@ -13,6 +13,10 @@
  */
 import { Authenticity } from "./src";
 
+// Node globals used only by the file-download check below.
+declare const require: any;
+declare const Buffer: any;
+
 /** Read an environment variable or return a fallback. */
 function envOr(name: string, fallback: string): string {
   const v = process.env[name];
@@ -94,6 +98,29 @@ async function main(): Promise<void> {
       ? "Webhook triggered"
       : "Webhook failed: " + client.getLastError()
   );
+
+  // File download check (opt-in). Set AUTH_FILE_ID to a file ID from
+  // dashboard/files, then verify the bytes land on disk and the dashboard
+  // Downloads counter increments after refresh.
+  const fileId = process.env.AUTH_FILE_ID ?? "";
+  if (!fileId) {
+    console.log("Skip file download check (set AUTH_FILE_ID to test it)");
+  } else {
+    try {
+      const data = await client.downloadFile(fileId);
+      if (data && data.byteLength > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const fs = require("fs");
+        const out = `downloaded_${fileId}.bin`;
+        fs.writeFileSync(out, Buffer.from(data));
+        console.log(`Downloaded ${data.byteLength} bytes -> ${out} (verified)`);
+      } else {
+        console.log("Download failed:", client.getLastError());
+      }
+    } catch (err: unknown) {
+      console.log("Download failed:", err instanceof Error ? err.message : err);
+    }
+  }
 
   // Chat: list channels and messages.
   const channels = await client.getChannels();

@@ -98,6 +98,11 @@ public class SDKTest {
 
         byte[] file = c.downloadFile("f1");
         assertEquals("BYTES", new String(file, StandardCharsets.UTF_8), "downloadFile bytes");
+        // End-to-end check: persist to disk and verify byte count.
+        java.nio.file.Path out = java.nio.file.Paths.get("downloaded_f1.bin");
+        java.nio.file.Files.write(out, file);
+        assertEquals((long) file.length, java.nio.file.Files.size(out), "downloadFile saved size");
+        java.nio.file.Files.deleteIfExists(out);
 
         assertTrue(c.ban("tamper"), "ban");
 

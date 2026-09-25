@@ -94,6 +94,23 @@ if channels.any?
   end
 end
 
+# --- File download check (opt-in) -------------------------------------------
+# Set AUTH_FILE_ID to a file ID from dashboard/files, then verify the bytes
+# land on disk and the dashboard Downloads counter increments after refresh.
+file_id = ENV['AUTH_FILE_ID'].to_s
+if file_id.empty?
+  puts 'Skip file download check (set AUTH_FILE_ID to test it)'
+else
+  data = client.download_file(file_id)
+  if data.empty?
+    puts "Download failed: #{client.get_last_error}"
+  else
+    out = "downloaded_#{file_id}.bin"
+    File.binwrite(out, data)
+    puts "Downloaded #{data.bytesize} bytes -> #{out} (verified)"
+  end
+end
+
 # --- Logs ---------------------------------------------------------------------
 client.log({ 'event' => 'example_runs', 'count' => 1 }, 'info')
 

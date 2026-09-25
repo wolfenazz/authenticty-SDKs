@@ -197,13 +197,40 @@ module Authenticity
     end
 
     # Perform a raw GET and return the response body as a String (bytes).
-    # Used for file downloads.
+    # Used for file downloads. Follows up to 5 redirects (direct links often
+    # 302 to storage) and rejects non-2xx statuses so error pages are never
+    # mistaken for file bytes.
     def get_raw(url)
-      uri = URI.parse(url.to_s)
-      http = build_http(uri)
-      request = Net::HTTP::Get.new(uri.request_uri, 'User-Agent' => USER_AGENT)
-      response = http.request(request)
-      response.body.to_s
+      current = url.to_s
+      5.times do
+        uri = URI.parse(current)
+        http = build_http(uri)
+        request = Net::HTTP::Get.new(uri.request_uri, 'User-Agent' => USER_AGENT)
+        response = http.request(request)
+        case response
+        when Net::HTTPRedirection
+          location = response['location'].to_s
+          if location.empty?
+            @last_error = "Download failed with HTTP status #{response.code}"
+            return ''
+          end
+          current = URI.join(current, location).to_s
+          next
+        when Net::HTTPSuccess
+          body = response.body.to_s
+          if body.empty?
+            @last_error = 'Download returned no data'
+            return ''
+          end
+          @last_error = ''
+          return body
+        else
+          @last_error = "Download failed with HTTP status #{response.code}"
+          return ''
+        end
+      end
+      @last_error = 'Download failed: too many redirects'
+      ''
     rescue StandardError => e
       @last_error = "Network error: #{e.message}"
       ''
@@ -447,17 +474,33 @@ module Authenticity
 
     # Download a file by file id, returning the raw bytes as a String.
     #
-    # @return [String] raw bytes; "" on failure / network error
+    # @return [String] raw bytes; "" on failure (see #get_last_error)
     def download_file(file_id)
+      if file_id.to_s.empty?
+        @last_error = 'authenticity: fileId is required'
+        return ''
+      end
+      unless @session['is_valid'] && !@session['token'].to_s.empty?
+        @last_error = 'Session is invalid'
+        return ''
+      end
       body = {
         'token' => @session['token'],
         'appId' => @app_id,
         'fileId' => file_id.to_s
       }
       resp = post('/files/download', body)
+      unless get_json_bool(resp, 'success')
+        @last_error = get_json_string(resp, 'message')
+        @last_error = 'Download failed' if @last_error.empty?
+        return ''
+      end
       url = get_json_string(resp, 'downloadUrl')
       url = get_json_string(resp, 'url') if url.empty?
-      return '' if url.empty?
+      if url.empty?
+        @last_error = 'Download URL not found in response'
+        return ''
+      end
 
       get_raw(url)
     end
@@ -466,15 +509,31 @@ module Authenticity
     #
     # @return [Boolean] true if the URL was obtained and an open command issued
     def download_file_direct(file_id)
+      if file_id.to_s.empty?
+        @last_error = 'authenticity: fileId is required'
+        return false
+      end
+      unless @session['is_valid'] && !@session['token'].to_s.empty?
+        @last_error = 'Session is invalid'
+        return false
+      end
       body = {
         'token' => @session['token'],
         'appId' => @app_id,
         'fileId' => file_id.to_s
       }
       resp = post('/files/download', body)
+      unless get_json_bool(resp, 'success')
+        @last_error = get_json_string(resp, 'message')
+        @last_error = 'Download failed' if @last_error.empty?
+        return false
+      end
       url = get_json_string(resp, 'downloadUrl')
       url = get_json_string(resp, 'url') if url.empty?
-      return false if url.empty?
+      if url.empty?
+        @last_error = 'Download URL not found in response'
+        return false
+      end
 
       open_browser(url)
       true

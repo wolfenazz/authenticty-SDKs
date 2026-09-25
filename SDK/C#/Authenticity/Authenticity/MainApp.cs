@@ -123,11 +123,28 @@ namespace Authenticity
 
         private void ButtonDownloadFile_Click(object sender, EventArgs e)
         {
-            // Use the proper API endpoint for downloading files
-            // This will trigger a direct download link , you must intialize it in your dashboard first
-            if (!client.DownloadFileDirect("test_file"))
+            // End-to-end check: resolve via /files/download, save to disk and
+            // verify. Create the file in dashboard/files first. Set AUTH_FILE_ID
+            // to test a specific file, otherwise "test_file" is used. Refresh
+            // the dashboard Downloads counter after a successful download.
+            string fileId = System.Environment.GetEnvironmentVariable("AUTH_FILE_ID");
+            if (string.IsNullOrWhiteSpace(fileId)) fileId = "test_file";
+            byte[] data = client.DownloadFile(fileId);
+            if (data == null || data.Length == 0)
             {
                 MessageBox.Show("Failed to download file: " + client.GetLastError(), "Download Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            using (var dlg = new SaveFileDialog { FileName = "downloaded_" + fileId + ".bin" })
+            {
+                if (dlg.ShowDialog() != DialogResult.OK) return;
+                System.IO.File.WriteAllBytes(dlg.FileName, data);
+                var onDisk = new System.IO.FileInfo(dlg.FileName).Length;
+                MessageBox.Show(
+                    onDisk == data.Length
+                        ? string.Format("Downloaded {0} bytes -> {1} (verified). Refresh dashboard/files to see Downloads +1.", data.Length, dlg.FileName)
+                        : string.Format("Saved but size mismatch. Expected {0}, found {1}.", data.Length, onDisk),
+                    "Download", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
 

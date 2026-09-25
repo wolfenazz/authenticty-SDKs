@@ -108,6 +108,26 @@ if (getenv('AUTH_SEND_COMMENT') === 'true' && !empty($channels[0]['id'])) {
     }
 }
 
+// File download check (opt-in). Set AUTH_FILE_ID to a file ID from
+// dashboard/files, then verify the bytes land on disk and the dashboard
+// Downloads counter increments after refresh.
+$fileId = getenv('AUTH_FILE_ID');
+if ($fileId !== false && $fileId !== '') {
+    $data = $client->downloadFile($fileId);
+    if ($data !== '') {
+        $out = 'downloaded_' . $fileId . '.bin';
+        if (file_put_contents($out, $data) === strlen($data)) {
+            echo "Downloaded " . strlen($data) . " bytes -> {$out} (verified)" . PHP_EOL;
+        } else {
+            echo "Download save failed: " . $client->getLastError() . PHP_EOL;
+        }
+    } else {
+        echo "Download failed: " . $client->getLastError() . PHP_EOL;
+    }
+} else {
+    echo "Skip file download check (set AUTH_FILE_ID to test it)" . PHP_EOL;
+}
+
 // Auto-login credential persistence (best-effort).
 $client->saveCredentials(Authenticity::LOGIN_TYPE_LICENSE, $licenseKey, '', '');
 $saved = $client->loadCredentials();

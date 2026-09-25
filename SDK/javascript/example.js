@@ -77,6 +77,28 @@ async function main() {
   const ok = await client.triggerWebhook('onStart', { user: session.username });
   console.log('Webhook triggered:', ok, ok ? '' : client.getLastError());
 
+  // File download check (opt-in). Set AUTH_FILE_ID to a file ID from
+  // dashboard/files, then verify the bytes land on disk and the dashboard
+  // Downloads counter increments after refresh.
+  const fileId = process.env.AUTH_FILE_ID || '';
+  if (!fileId) {
+    console.log('Skip file download check (set AUTH_FILE_ID to test it)');
+  } else {
+    try {
+      const data = await client.downloadFile(fileId);
+      if (data && data.byteLength > 0) {
+        const fs = require('fs');
+        const out = `downloaded_${fileId}.bin`;
+        fs.writeFileSync(out, Buffer.from(data));
+        console.log(`Downloaded ${data.byteLength} bytes -> ${out} (verified)`);
+      } else {
+        console.log('Download failed:', client.getLastError());
+      }
+    } catch (err) {
+      console.log('Download failed:', err && err.message ? err.message : err);
+    }
+  }
+
   // Chat.
   const profile = await client.getChatProfile();
   if (profile) console.log('Chat profile:', profile.nickname, profile.avatarId);

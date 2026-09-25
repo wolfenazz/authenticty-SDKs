@@ -100,6 +100,27 @@ func main() {
 		}
 	}
 
+	// File download check (opt-in). Set AUTH_FILE_ID to a file ID from
+	// dashboard/files, then verify the bytes land on disk and the dashboard
+	// Downloads counter increments after refresh.
+	if fileID := os.Getenv("AUTH_FILE_ID"); fileID != "" {
+		if data, err := client.DownloadFile(fileID); err != nil {
+			fmt.Println("Download failed:", err)
+		} else if out, werr := os.Create("downloaded_" + fileID + ".bin"); werr != nil {
+			fmt.Println("Download save failed:", werr)
+		} else {
+			n, werr := out.Write(data)
+			out.Close()
+			if werr != nil || n != len(data) {
+				fmt.Println("Download save failed:", client.GetLastError())
+			} else {
+				fmt.Printf("Downloaded %d bytes -> downloaded_%s.bin (verified)\n", len(data), fileID)
+			}
+		}
+	} else {
+		fmt.Println("Skip file download check (set AUTH_FILE_ID to test it)")
+	}
+
 	// Save and load auto-login credentials (best-effort).
 	client.SaveCredentials(authenticity.LoginTypeLicense, client.LicenseKey, "", "")
 	saved := client.LoadCredentials()

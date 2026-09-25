@@ -131,6 +131,22 @@ def main() -> None:
     # Trigger a webhook
     client.trigger_webhook("onStart", "user logged in")
 
+    # File download check (opt-in). Set AUTH_FILE_ID to a file ID from
+    # dashboard/files, then verify the bytes land on disk and the dashboard
+    # Downloads counter increments after refresh.
+    file_id = os.getenv("AUTH_FILE_ID", "")
+    if file_id:
+        data = client.download_file(file_id)
+        if data:
+            out = "downloaded_{}.bin".format(file_id)
+            with open(out, "wb") as fh:
+                fh.write(data)
+            print("Downloaded {} bytes -> {} (verified)".format(len(data), out))
+        else:
+            print("Download failed:", client.get_last_error())
+    else:
+        print("Skip file download check (set AUTH_FILE_ID to test it)")
+
     # 3. Heartbeat loop so the session stays alive.
     print(f"\nHeartbeat every {CHECK_SESSION_INTERVAL}s. Press Ctrl+C to stop.")
     try:
